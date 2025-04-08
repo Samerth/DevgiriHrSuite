@@ -38,11 +38,12 @@ interface AttendanceFormProps {
 }
 
 const formSchema = z.object({
-  employeeId: z.string().min(1, "Employee is required"),
+  userId: z.string().min(1, "Employee is required"),
   date: z.string().min(1, "Date is required"),
-  checkIn: z.string().optional(),
-  checkOut: z.string().optional(),
+  checkInTime: z.string().optional(),
+  checkOutTime: z.string().optional(),
   status: z.string().min(1, "Status is required"),
+  checkInMethod: z.string().default("manual"), 
   notes: z.string().optional(),
 });
 
@@ -63,11 +64,12 @@ export default function AttendanceForm({ isOpen, onClose }: AttendanceFormProps)
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      employeeId: "",
+      userId: "",
       date: new Date().toISOString().split("T")[0],
-      checkIn: "",
-      checkOut: "",
+      checkInTime: "",
+      checkOutTime: "",
       status: "",
+      checkInMethod: "manual",
       notes: "",
     },
   });
@@ -98,13 +100,13 @@ export default function AttendanceForm({ isOpen, onClose }: AttendanceFormProps)
   const onSubmit = (values: FormValues) => {
     // Convert string values to appropriate types
     const payload = {
-      employeeId: parseInt(values.employeeId),
+      userId: parseInt(values.userId),
       date: new Date(values.date),
       status: values.status,
-      method: "manual", // Since this is a manual entry
+      checkInMethod: values.checkInMethod,
       notes: values.notes || "",
-      checkIn: values.checkIn ? new Date(`${values.date}T${values.checkIn}`) : null,
-      checkOut: values.checkOut ? new Date(`${values.date}T${values.checkOut}`) : null,
+      checkInTime: values.checkInTime ? values.checkInTime : null,
+      checkOutTime: values.checkOutTime ? values.checkOutTime : null,
     };
     
     createAttendanceMutation.mutate(payload);
@@ -124,7 +126,7 @@ export default function AttendanceForm({ isOpen, onClose }: AttendanceFormProps)
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="employeeId"
+              name="userId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Employee</FormLabel>
@@ -138,9 +140,9 @@ export default function AttendanceForm({ isOpen, onClose }: AttendanceFormProps)
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {employeesData?.map((employee: any) => (
+                      {Array.isArray(employeesData) && employeesData.map((employee: any) => (
                         <SelectItem key={employee.id} value={employee.id.toString()}>
-                          {employee.firstName} {employee.lastName} ({employee.employeeId})
+                          {employee.firstName} {employee.lastName}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -164,38 +166,68 @@ export default function AttendanceForm({ isOpen, onClose }: AttendanceFormProps)
               )}
             />
             
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {enumsData?.attendanceStatus.map((status: string) => (
-                        <SelectItem key={status} value={status}>
-                          {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {enumsData && Array.isArray(enumsData.attendanceStatus) && enumsData.attendanceStatus.map((status: string) => (
+                          <SelectItem key={status} value={status}>
+                            {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="checkInMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Method</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select method" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {enumsData && Array.isArray(enumsData.attendanceMethod) && enumsData.attendanceMethod.map((method: string) => (
+                          <SelectItem key={method} value={method}>
+                            {method.charAt(0).toUpperCase() + method.slice(1).replace('_', ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="checkIn"
+                name="checkInTime"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Check In Time</FormLabel>
@@ -209,7 +241,7 @@ export default function AttendanceForm({ isOpen, onClose }: AttendanceFormProps)
               
               <FormField
                 control={form.control}
-                name="checkOut"
+                name="checkOutTime"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Check Out Time</FormLabel>

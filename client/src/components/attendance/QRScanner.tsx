@@ -15,6 +15,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { QrCode, CameraIcon, Fingerprint, Badge } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import QRCodeScanner from "@/components/common/QRCodeScanner";
 
 interface QRScannerProps {
   open: boolean;
@@ -25,10 +26,9 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
   const [activeTab, setActiveTab] = useState("qr");
   const [isScanning, setIsScanning] = useState(false);
   const [employeeId, setEmployeeId] = useState("");
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { authState } = useAuth();
+  const user = authState.user;
 
   const markAttendanceMutation = useMutation({
     mutationFn: async (data: { userId: number; checkInMethod: string }) => {
@@ -60,38 +60,13 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
     }
   });
 
-  // Simulate starting the QR scanner
+  // Control the QR scanner state
   const startScanner = () => {
     setIsScanning(true);
-    
-    // In a real implementation, we would access the camera and scan for QR codes
-    // For demonstration purposes, we'll simulate a successful scan after a delay
-    if (videoRef.current && canvasRef.current) {
-      // Here we would normally start the camera and QR scanning process
-      // For demonstration, we're just showing an animation
-      
-      // In a real app:
-      // 1. Get camera access with navigator.mediaDevices.getUserMedia
-      // 2. Set the video srcObject to the camera stream
-      // 3. Use a QR code scanning library to detect codes from video frames
-      // 4. Process the QR code data when detected
-    }
-    
-    // Simulate a successful scan after 3 seconds
-    setTimeout(() => {
-      if (user) {
-        handleSuccessfulScan(user.id.toString());
-      }
-    }, 3000);
   };
 
   const stopScanner = () => {
     setIsScanning(false);
-    
-    // In a real implementation, we would stop the camera stream
-    if (videoRef.current) {
-      // videoRef.current.srcObject = null;
-    }
   };
 
   const handleSuccessfulScan = (qrData: string) => {
@@ -184,18 +159,9 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
               className={`w-full h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center relative overflow-hidden ${isScanning ? 'border-primary' : ''}`}
             >
               {isScanning ? (
-                <>
-                  <canvas ref={canvasRef} className="absolute inset-0" style={{ display: 'none' }}></canvas>
-                  <video 
-                    ref={videoRef} 
-                    className="absolute inset-0 h-full w-full object-cover"
-                    playsInline
-                    muted
-                  ></video>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <QrCode className="h-16 w-16 text-primary/20 animate-pulse" />
-                  </div>
-                </>
+                <div className="w-full h-full">
+                  <QRCodeScanner onScan={handleSuccessfulScan} />
+                </div>
               ) : (
                 <div className="text-center">
                   <CameraIcon className="h-12 w-12 text-neutral-300 mx-auto mb-2" />

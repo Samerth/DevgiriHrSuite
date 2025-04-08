@@ -43,8 +43,13 @@ const AuthContext = createContext<AuthContextType>({
     user: dummyUser,
     loading: false
   },
-  login: async () => true,
-  logout: () => {}
+  login: async () => {
+    console.log("Mock login successful");
+    return true;
+  },
+  logout: () => {
+    console.log("Mock logout");
+  }
 });
 
 // Simple authentication utilities

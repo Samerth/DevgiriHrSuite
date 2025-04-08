@@ -321,6 +321,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Leave request routes
+  app.get("/api/leave-requests", requireAuth, async (req, res) => {
+    try {
+      // Get all leave requests (we can implement filtering later)
+      const allRequests = [];
+      const users = await storage.getAllUsers();
+      
+      // Get leave requests for all users
+      for (const user of users) {
+        const userRequests = await storage.getUserLeaveRequests(user.id);
+        allRequests.push(...userRequests);
+      }
+      
+      res.json(allRequests);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+  
   app.get("/api/leave-requests/pending", requireAdmin, async (req, res) => {
     try {
       const pendingRequests = await storage.getPendingLeaveRequests();

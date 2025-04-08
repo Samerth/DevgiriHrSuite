@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, Download, QrCode, UserPlus } from "lucide-react";
+import { CalendarIcon, Download, QrCode, UserPlus, UsersRound } from "lucide-react";
 import { 
   Popover,
   PopoverContent,
@@ -28,11 +28,13 @@ import { useAuth } from "@/lib/auth";
 import { format } from "date-fns";
 import QRScanner from "@/components/attendance/QRScanner";
 import AttendanceTable from "@/components/attendance/AttendanceTable";
+import BulkAttendanceForm from "@/components/attendance/BulkAttendanceForm";
 import { cn } from "@/lib/utils";
 
 export default function Attendance() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [bulkAttendanceOpen, setBulkAttendanceOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("daily");
   const { user } = useAuth();
 
@@ -242,20 +244,21 @@ export default function Attendance() {
       {/* Bulk Attendance Upload (Admin Only) */}
       {manualEntryEnabled && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Bulk Attendance</CardTitle>
+            <Button onClick={() => setBulkAttendanceOpen(true)}>
+              <UsersRound className="mr-2 h-4 w-4" />
+              Mark Attendance in Bulk
+            </Button>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col md:flex-row gap-4 items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-neutral-700 mb-1">CSV File</label>
-                <input 
-                  type="file" 
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-white hover:file:bg-primary/90"
-                />
-                <p className="mt-1 text-xs text-neutral-500">Upload a CSV file with employee ID, date, status, and time.</p>
-              </div>
-              <Button>Upload and Process</Button>
+            <div className="text-sm text-muted-foreground">
+              <p>Use bulk attendance marking to quickly mark attendance for multiple employees at once.</p>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>Select multiple employees</li>
+                <li>Choose a date and status</li>
+                <li>Optionally set check-in and check-out times</li>
+              </ul>
             </div>
           </CardContent>
         </Card>
@@ -263,6 +266,15 @@ export default function Attendance() {
 
       {/* QR Scanner Modal */}
       <QRScanner open={qrModalOpen} onClose={() => setQrModalOpen(false)} />
+
+      {/* Bulk Attendance Modal */}
+      {manualEntryEnabled && (
+        <BulkAttendanceForm 
+          isOpen={bulkAttendanceOpen} 
+          onClose={() => setBulkAttendanceOpen(false)} 
+          employees={todayAttendance.map(a => a.user) || []}
+        />
+      )}
     </>
   );
 }

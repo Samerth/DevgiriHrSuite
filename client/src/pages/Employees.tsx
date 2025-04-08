@@ -17,10 +17,11 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, UserPlus } from "lucide-react";
+import { Plus, Search, UserPlus, Upload, Database } from "lucide-react";
 import EmployeeTable from "@/components/employees/EmployeeTable";
 import AddEmployeeModal from "@/components/employees/AddEmployeeModal";
 import EmployeeProfile from "@/components/employees/EmployeeProfile";
+import BulkImportForm from "@/components/employees/BulkImportForm";
 import { User } from "@shared/schema";
 
 // Default employee data for development
@@ -111,6 +112,7 @@ export default function Employees() {
   const [searchQuery, setSearchQuery] = useState("");
   const [department, setDepartment] = useState("");
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("all");
   // State to store locally added employees
@@ -173,10 +175,16 @@ export default function Employees() {
     <>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-neutral-800">Employees</h1>
-        <Button onClick={() => setAddModalOpen(true)}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add Employee
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => setBulkImportOpen(true)}>
+            <Database className="mr-2 h-4 w-4" />
+            Bulk Import
+          </Button>
+          <Button onClick={() => setAddModalOpen(true)}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add Employee
+          </Button>
+        </div>
       </div>
 
       {/* Employee Profile View */}
@@ -264,6 +272,12 @@ export default function Employees() {
         onEmployeeAdded={(newEmployee) => {
           setLocalEmployees(prev => [...prev, newEmployee]);
         }}
+      />
+
+      {/* Bulk Import Modal */}
+      <BulkImportForm
+        isOpen={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
       />
     </>
   );

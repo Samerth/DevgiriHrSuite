@@ -10,7 +10,8 @@ import {
   departmentEnum,
   leaveTypeEnum,
   attendanceStatusEnum,
-  attendanceMethodEnum
+  attendanceMethodEnum,
+  type InsertAttendance
 } from "@shared/schema";
 import session from "express-session";
 import passport from "passport";
@@ -200,11 +201,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/users", requireAdmin, async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
+      
+      // Check if username is already taken
+      const existingUser = await storage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+      
       const user = await storage.createUser(userData);
       res.status(201).json(user);
     } catch (error) {
       if (error instanceof ZodError) {
         return res.status(400).json({ error: error.message });
+      }
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+  
+  // Bulk employee import
+  app.post("/api/users/bulk", requireAdmin, async (req, res) => {
+    try {
+      // Create a simplified user insert schema for bulk imports
+      const simplifiedUserSchema = insertUserSchema.extend({
+        role: z.enum(['admin', 'employee', 'manager']).default('employee')
+      });
+      
+      // Array of user objects
+      const bulkUserSchema = z.array(simplifiedUserSchema);
+      
+      const users = bulkUserSchema.parse(req.body);
+      const results = [];
+      const errors = [];
+      
+      for (const userData of users) {
+        try {
+          // Check if username is already taken
+          const existingUser = await storage.getUserByUsername(userData.username);
+          if (existingUser) {
+            errors.push({ 
+              username: userData.username, 
+              error: "Username already exists" 
+            });
+            continue;
+          }
+          
+          // Create user
+          const user = await storage.createUser(userData);
+          results.push(user);
+        } catch (error) {
+          errors.push({ 
+            username: userData.username, 
+            error: (error as Error).message 
+          });
+        }
+      }
+      
+      res.json({
+        success: true,
+        processed: users.length,
+        successful: results.length,
+        failed: errors.length,
+        results,
+        errors
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Invalid data format", 
+          details: error.message 
+        });
       }
       res.status(500).json({ error: (error as Error).message });
     }
@@ -307,6 +372,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const attendance = await storage.createAttendance(attendanceData);
       res.status(201).json(attendance);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+  
+  // Bulk attendance marking
+  app.post("/api/attendance/bulk", requireAdmin, async (req, res) => {
+    try {
+      // Define schema for bulk attendance
+      const bulkAttendanceInputSchema = z.object({
+        date: z.string(),
+        employeeIds: z.array(z.number()),
+        status: z.enum(['present', 'absent', 'late', 'half_day', 'on_leave']),
+        checkInTime: z.string().optional(),
+        checkOutTime: z.string().optional(),
+        checkInMethod: z.enum(['qr_code', 'biometric', 'manual', 'geo_location']).optional(),
+        checkOutMethod: z.enum(['qr_code', 'biometric', 'manual', 'geo_location']).optional(),
+        notes: z.string().optional(),
+      });
+      
+      const bulkData = bulkAttendanceInputSchema.parse(req.body);
+      const results = [];
+      const errors = [];
+      
+      for (const userId of bulkData.employeeIds) {
+        try {
+          // Check if user exists
+          const user = await storage.getUser(userId);
+          if (!user) {
+            errors.push({ userId, error: "User not found" });
+            continue;
+          }
+          
+          // Create attendance object
+          const attendanceData: InsertAttendance = {
+            userId,
+            date: bulkData.date,
+            status: bulkData.status,
+            checkInTime: bulkData.checkInTime || null,
+            checkOutTime: bulkData.checkOutTime || null,
+            checkInMethod: bulkData.checkInMethod || null,
+            checkOutMethod: bulkData.checkOutMethod || null,
+            notes: bulkData.notes || null
+          };
+          
+          // Check if attendance already exists for this date
+          const existingAttendance = await storage.getUserAttendanceByDate(
+            userId, 
+            new Date(bulkData.date)
+          );
+          
+          let attendance;
+          if (existingAttendance) {
+            // Update instead of creating new
+            attendance = await storage.updateAttendance(existingAttendance.id, attendanceData);
+          } else {
+            // Create new attendance
+            attendance = await storage.createAttendance(attendanceData);
+          }
+          
+          results.push(attendance);
+        } catch (error) {
+          errors.push({ userId, error: (error as Error).message });
+        }
+      }
+      
+      res.json({
+        success: true,
+        processed: bulkData.employeeIds.length,
+        successful: results.length,
+        failed: errors.length,
+        results,
+        errors
+      });
     } catch (error) {
       if (error instanceof ZodError) {
         return res.status(400).json({ error: error.message });

@@ -1,5 +1,13 @@
 import { DashboardStats as DashboardStatsType } from "@/lib/types";
-import { Users, CheckSquare, CalendarX, Clock } from "lucide-react";
+import { 
+  Users, 
+  CheckSquare, 
+  CalendarX, 
+  Clock, 
+  TrendingUp,
+  TrendingDown,
+  User 
+} from "lucide-react";
 
 interface DashboardStatsProps {
   stats: DashboardStatsType;
@@ -61,12 +69,12 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
                     : "text-red-600"
               }`}>
                 {!item.change.isNeutral && (
-                  <span className="material-icons text-sm mr-1">
-                    {item.change.isPositive ? "arrow_upward" : "arrow_downward"}
-                  </span>
+                  item.change.isPositive 
+                  ? <TrendingUp className="h-3 w-3 mr-1" /> 
+                  : <TrendingDown className="h-3 w-3 mr-1" />
                 )}
                 {item.change.isNeutral && (
-                  <span className="material-icons text-sm mr-1">person</span>
+                  <User className="h-3 w-3 mr-1" />
                 )}
                 <span>{item.change.value} {item.change.text}</span>
               </p>

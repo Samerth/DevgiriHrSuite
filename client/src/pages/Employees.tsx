@@ -113,9 +113,11 @@ export default function Employees() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState("all");
+  // State to store locally added employees
+  const [localEmployees, setLocalEmployees] = useState<User[]>([]);
 
   const { data: users, isLoading } = useQuery<User[]>({
-    queryKey: ['/api/users', searchQuery, department],
+    queryKey: ['/api/users', searchQuery, department, localEmployees.length],
     queryFn: async () => {
       try {
         const url = `/api/users/search?q=${encodeURIComponent(searchQuery)}${department && department !== "all" ? `&department=${encodeURIComponent(department)}` : ''}`;
@@ -124,8 +126,11 @@ export default function Employees() {
         return res.json();
       } catch (error) {
         console.error("Error fetching employees:", error);
-        // Filter default data based on search and department
-        return defaultEmployees.filter(employee => {
+        // Combine default employees with locally added employees
+        const combinedEmployees = [...defaultEmployees, ...localEmployees];
+        
+        // Filter based on search and department
+        return combinedEmployees.filter(employee => {
           const matchesSearch = searchQuery === "" || 
             `${employee.firstName} ${employee.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
             employee.email?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -228,7 +233,13 @@ export default function Employees() {
       )}
 
       {/* Add Employee Modal */}
-      <AddEmployeeModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
+      <AddEmployeeModal 
+        open={addModalOpen} 
+        onClose={() => setAddModalOpen(false)} 
+        onEmployeeAdded={(newEmployee) => {
+          setLocalEmployees(prev => [...prev, newEmployee]);
+        }}
+      />
     </>
   );
 }

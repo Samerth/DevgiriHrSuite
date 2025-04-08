@@ -93,6 +93,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     res.json({ authenticated: true, user: req.user });
   });
+  
+  // Enums endpoint - provides all enum values for the client
+  app.get("/api/enums", (_req, res) => {
+    res.json({
+      roles: roleEnum.enumValues,
+      departments: departmentEnum.enumValues,
+      leaveStatuses: leaveStatusEnum.enumValues,
+      leaveTypes: leaveTypeEnum.enumValues,
+      attendanceStatuses: attendanceStatusEnum.enumValues,
+      attendanceMethods: attendanceMethodEnum.enumValues
+    });
+  });
 
   // User/Employee routes
   app.get("/api/users", requireAuth, async (req, res) => {

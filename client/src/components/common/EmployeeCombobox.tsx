@@ -35,7 +35,7 @@ export function EmployeeCombobox({
   const [searchTerm, setSearchTerm] = React.useState("")
 
   const { data: employeesData, isLoading } = useQuery({
-    queryKey: ["/api/employees"],
+    queryKey: ["/api/users"],
   })
 
   // Filter employees based on search term

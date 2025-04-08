@@ -60,7 +60,7 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
   const queryClient = useQueryClient();
   
   const { data: employeesData } = useQuery({
-    queryKey: ["/api/employees"],
+    queryKey: ["/api/users"],
   });
   
   const { data: enumsData } = useQuery({

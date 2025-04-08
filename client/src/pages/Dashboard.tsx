@@ -19,11 +19,11 @@ export default function Dashboard() {
     queryKey: ['/api/dashboard/stats'],
   });
 
-  const { data: todayAttendance, isLoading: isAttendanceLoading } = useQuery({
+  const { data: todayAttendance = [], isLoading: isAttendanceLoading } = useQuery({
     queryKey: ['/api/attendance/today'],
   });
 
-  const { data: pendingLeaves, isLoading: isLeavesLoading } = useQuery({
+  const { data: pendingLeaves = [], isLoading: isLeavesLoading } = useQuery({
     queryKey: ['/api/leave-requests/pending'],
   });
 

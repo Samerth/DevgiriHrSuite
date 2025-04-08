@@ -118,7 +118,7 @@ export default function Employees() {
     queryKey: ['/api/users', searchQuery, department],
     queryFn: async () => {
       try {
-        const url = `/api/users/search?q=${encodeURIComponent(searchQuery)}${department ? `&department=${encodeURIComponent(department)}` : ''}`;
+        const url = `/api/users/search?q=${encodeURIComponent(searchQuery)}${department && department !== "all" ? `&department=${encodeURIComponent(department)}` : ''}`;
         const res = await fetch(url, { credentials: 'include' });
         if (!res.ok) throw new Error('Failed to fetch employees');
         return res.json();
@@ -130,7 +130,7 @@ export default function Employees() {
             `${employee.firstName} ${employee.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
             employee.email?.toLowerCase().includes(searchQuery.toLowerCase());
           
-          const matchesDepartment = department === "" || employee.department === department;
+          const matchesDepartment = department === "all" || employee.department === department;
           
           return matchesSearch && matchesDepartment;
         });
@@ -179,7 +179,7 @@ export default function Employees() {
                     <SelectValue placeholder="All Departments" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Departments</SelectItem>
+                    <SelectItem value="all">All Departments</SelectItem>
                     <SelectItem value="engineering">Engineering</SelectItem>
                     <SelectItem value="marketing">Marketing</SelectItem>
                     <SelectItem value="sales">Sales</SelectItem>

@@ -38,11 +38,11 @@ export default function Attendance() {
 
   const formattedDate = format(selectedDate, 'yyyy-MM-dd');
   
-  const { data: todayAttendance, isLoading: isAttendanceLoading } = useQuery({
+  const { data: todayAttendance = [], isLoading: isAttendanceLoading } = useQuery({
     queryKey: ['/api/attendance/today'],
   });
 
-  const { data: selectedDateAttendance, isLoading: isSelectedDateLoading } = useQuery({
+  const { data: selectedDateAttendance = {}, isLoading: isSelectedDateLoading } = useQuery({
     queryKey: ['/api/attendance/user', user?.id, { date: formattedDate }],
     enabled: !!user?.id,
   });
@@ -99,7 +99,7 @@ export default function Attendance() {
                       'bg-gray-100 text-gray-800'
                     }>
                       {selectedDateAttendance.status === 'on_leave' ? 'On Leave' : 
-                       selectedDateAttendance.status.charAt(0).toUpperCase() + selectedDateAttendance.status.slice(1)}
+                       (selectedDateAttendance.status ? selectedDateAttendance.status.charAt(0).toUpperCase() + selectedDateAttendance.status.slice(1) : 'Unknown')}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
@@ -128,38 +128,40 @@ export default function Attendance() {
         <Card className="md:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle>Attendance Records</CardTitle>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="daily">Daily</TabsTrigger>
-                <TabsTrigger value="weekly">Weekly</TabsTrigger>
-                <TabsTrigger value="monthly">Monthly</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="inline-block">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList>
+                  <TabsTrigger value="daily">Daily</TabsTrigger>
+                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </CardHeader>
           <CardContent>
-            <TabsContent value="daily" className="mt-0">
+            {activeTab === "daily" && (
               <AttendanceTable 
                 data={todayAttendance || []} 
                 isLoading={isAttendanceLoading} 
                 selectedDate={selectedDate}
               />
-            </TabsContent>
-            <TabsContent value="weekly" className="mt-0">
+            )}
+            {activeTab === "weekly" && (
               <AttendanceTable 
                 data={todayAttendance || []} 
                 isLoading={isAttendanceLoading}
                 selectedDate={selectedDate}
                 period="week"
               />
-            </TabsContent>
-            <TabsContent value="monthly" className="mt-0">
+            )}
+            {activeTab === "monthly" && (
               <AttendanceTable 
                 data={todayAttendance || []} 
                 isLoading={isAttendanceLoading}
                 selectedDate={selectedDate}
                 period="month"
               />
-            </TabsContent>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -174,7 +176,7 @@ export default function Attendance() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">Employee</label>
-                <Select>
+                <Select defaultValue="1">
                   <SelectTrigger>
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
@@ -215,7 +217,7 @@ export default function Attendance() {
               
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">Status</label>
-                <Select>
+                <Select defaultValue="present">
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>

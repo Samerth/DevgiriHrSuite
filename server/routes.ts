@@ -253,7 +253,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/attendance/statistics", requireAuth, async (req, res) => {
     try {
       const statistics = await storage.getAttendanceStatistics();
-      res.json(statistics);
+      
+      // Set header explicitly to ensure JSON response
+      res.setHeader('Content-Type', 'application/json');
+      res.send(JSON.stringify(statistics));
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
     }

@@ -135,6 +135,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Temporary route to create the first admin user
+  app.post("/api/setup/admin", async (req, res) => {
+    try {
+      // Check if we already have users
+      const users = await storage.getAllUsers();
+      if (users.length > 0) {
+        return res.status(400).json({ message: "Setup already completed" });
+      }
+      
+      const userData = insertUserSchema.parse(req.body);
+      const user = await storage.createUser({
+        ...userData,
+        role: "admin" // Ensure it's admin role
+      });
+      res.status(201).json(user);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+  
   app.post("/api/users", requireAdmin, async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);

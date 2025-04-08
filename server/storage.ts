@@ -83,7 +83,20 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
-    const user: User = { ...insertUser, id, isActive: true };
+    // Make sure required fields are present
+    const user: User = { 
+      ...insertUser, 
+      id, 
+      isActive: true,
+      role: insertUser.role || 'employee',
+      department: insertUser.department || null,
+      position: insertUser.position || null,
+      phone: insertUser.phone || null,
+      address: insertUser.address || null,
+      employeeId: insertUser.employeeId || null,
+      joinDate: insertUser.joinDate || null,
+      profileImageUrl: insertUser.profileImageUrl || null
+    };
     this.users.set(id, user);
     return user;
   }
@@ -127,7 +140,16 @@ export class MemStorage implements IStorage {
   // Attendance Methods
   async createAttendance(attendanceData: InsertAttendance): Promise<Attendance> {
     const id = this.currentAttendanceId++;
-    const newAttendance: Attendance = { ...attendanceData, id };
+    const newAttendance: Attendance = { 
+      ...attendanceData, 
+      id,
+      status: attendanceData.status || 'present',
+      checkInTime: attendanceData.checkInTime || null,
+      checkOutTime: attendanceData.checkOutTime || null,
+      checkInMethod: attendanceData.checkInMethod || null,
+      checkOutMethod: attendanceData.checkOutMethod || null,
+      notes: attendanceData.notes || null
+    };
     this.attendance.set(id, newAttendance);
     return newAttendance;
   }
@@ -186,14 +208,19 @@ export class MemStorage implements IStorage {
   // Leave Request Methods
   async createLeaveRequest(leaveRequestData: InsertLeaveRequest): Promise<LeaveRequest> {
     const id = this.currentLeaveRequestId++;
+    // Format dates as strings for DB compatibility
+    const requestDate = new Date();
+    const requestDateStr = requestDate.toISOString();
+    
     const newLeaveRequest: LeaveRequest = { 
       ...leaveRequestData, 
       id, 
       status: 'pending', 
-      requestDate: new Date(),
+      requestDate: requestDateStr,
       responseDate: null,
       responseNotes: null,
-      approvedById: null
+      approvedById: null,
+      reason: leaveRequestData.reason || null
     };
     this.leaveRequests.set(id, newLeaveRequest);
     return newLeaveRequest;
@@ -233,11 +260,15 @@ export class MemStorage implements IStorage {
     const leaveRequest = this.leaveRequests.get(id);
     if (!leaveRequest) return undefined;
     
+    // Format date as string for DB compatibility
+    const responseDate = new Date();
+    const responseDateStr = responseDate.toISOString();
+    
     const updatedLeaveRequest: LeaveRequest = { 
       ...leaveRequest, 
       status: status,
       approvedById,
-      responseDate: new Date(),
+      responseDate: responseDateStr,
       responseNotes: notes || null
     };
     
@@ -246,4 +277,253 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage implementation
+export class DatabaseStorage implements IStorage {
+  // User/Employee Methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    // Convert join date if needed
+    let userData = insertUser;
+    if (insertUser.joinDate && insertUser.joinDate instanceof Date) {
+      userData = {
+        ...insertUser,
+        joinDate: insertUser.joinDate.toISOString().split('T')[0]
+      };
+    }
+    
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.isActive, true));
+  }
+
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(userData)
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  async deleteUser(id: number): Promise<boolean> {
+    const [user] = await db
+      .update(users)
+      .set({ isActive: false })
+      .where(eq(users.id, id))
+      .returning();
+    return !!user;
+  }
+
+  async searchUsers(query: string, department?: string): Promise<User[]> {
+    let conditions = and(
+      eq(users.isActive, true),
+      or(
+        like(users.firstName, `%${query}%`),
+        like(users.lastName, `%${query}%`),
+        like(users.email, `%${query}%`),
+        like(users.employeeId, `%${query}%`)
+      )
+    );
+    
+    if (department) {
+      conditions = and(conditions, eq(users.department, department));
+    }
+    
+    return await db.select().from(users).where(conditions);
+  }
+
+  // Attendance Methods
+  async createAttendance(attendanceData: InsertAttendance): Promise<Attendance> {
+    const [newAttendance] = await db.insert(attendance).values(attendanceData).returning();
+    return newAttendance;
+  }
+
+  async getAttendance(id: number): Promise<Attendance | undefined> {
+    const [att] = await db.select().from(attendance).where(eq(attendance.id, id));
+    return att;
+  }
+
+  async getUserAttendance(userId: number): Promise<Attendance[]> {
+    return await db
+      .select()
+      .from(attendance)
+      .where(eq(attendance.userId, userId))
+      .orderBy(desc(attendance.date));
+  }
+
+  async getUserAttendanceByDate(userId: number, date: Date): Promise<Attendance | undefined> {
+    const dateString = date.toISOString().split('T')[0];
+    const [att] = await db
+      .select()
+      .from(attendance)
+      .where(
+        and(
+          eq(attendance.userId, userId),
+          eq(attendance.date, dateString)
+        )
+      );
+    
+    return att;
+  }
+
+  async getUserAttendanceByDateRange(userId: number, startDate: Date, endDate: Date): Promise<Attendance[]> {
+    const startDateString = startDate.toISOString().split('T')[0];
+    const endDateString = endDate.toISOString().split('T')[0];
+    
+    return await db
+      .select()
+      .from(attendance)
+      .where(
+        and(
+          eq(attendance.userId, userId),
+          gte(attendance.date, startDateString),
+          lte(attendance.date, endDateString)
+        )
+      )
+      .orderBy(desc(attendance.date));
+  }
+
+  async updateAttendance(id: number, attendanceData: Partial<InsertAttendance>): Promise<Attendance | undefined> {
+    const [updatedAttendance] = await db
+      .update(attendance)
+      .set(attendanceData)
+      .where(eq(attendance.id, id))
+      .returning();
+      
+    return updatedAttendance;
+  }
+
+  async getTodayAttendance(): Promise<(Attendance & { user: User })[]> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    return await db
+      .select({
+        id: attendance.id,
+        userId: attendance.userId,
+        date: attendance.date,
+        checkInTime: attendance.checkInTime,
+        checkOutTime: attendance.checkOutTime,
+        status: attendance.status,
+        checkInMethod: attendance.checkInMethod,
+        checkOutMethod: attendance.checkOutMethod,
+        notes: attendance.notes,
+        user: users
+      })
+      .from(attendance)
+      .innerJoin(users, eq(attendance.userId, users.id))
+      .where(eq(attendance.date, today));
+  }
+
+  // Leave Request Methods
+  async createLeaveRequest(leaveRequestData: InsertLeaveRequest): Promise<LeaveRequest> {
+    try {
+      // Format the startDate and endDate as needed
+      const result = await db.transaction(async (tx) => {
+        // Insert with only the values defined in the schema
+        const [newLeaveRequest] = await tx
+          .insert(leaveRequests)
+          .values({
+            userId: leaveRequestData.userId,
+            startDate: leaveRequestData.startDate,
+            endDate: leaveRequestData.endDate,
+            type: leaveRequestData.type,
+            reason: leaveRequestData.reason || null,
+            // Let the database handle the default values:
+            // status defaults to 'pending'
+            // requestDate defaults to NOW()
+          })
+          .returning();
+          
+        return newLeaveRequest;
+      });
+      
+      return result;
+    } catch (error) {
+      console.error("Error creating leave request:", error);
+      throw error;
+    }
+  }
+
+  async getLeaveRequest(id: number): Promise<LeaveRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.id, id));
+      
+    return request;
+  }
+
+  async getUserLeaveRequests(userId: number): Promise<LeaveRequest[]> {
+    return await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.userId, userId))
+      .orderBy(desc(leaveRequests.requestDate));
+  }
+
+  async updateLeaveRequest(id: number, leaveRequestData: Partial<LeaveRequest>): Promise<LeaveRequest | undefined> {
+    const [updatedRequest] = await db
+      .update(leaveRequests)
+      .set(leaveRequestData)
+      .where(eq(leaveRequests.id, id))
+      .returning();
+      
+    return updatedRequest;
+  }
+
+  async getPendingLeaveRequests(): Promise<(LeaveRequest & { user: User })[]> {
+    return await db
+      .select({
+        id: leaveRequests.id,
+        userId: leaveRequests.userId,
+        startDate: leaveRequests.startDate,
+        endDate: leaveRequests.endDate,
+        type: leaveRequests.type,
+        reason: leaveRequests.reason,
+        status: leaveRequests.status,
+        approvedById: leaveRequests.approvedById,
+        requestDate: leaveRequests.requestDate,
+        responseDate: leaveRequests.responseDate,
+        responseNotes: leaveRequests.responseNotes,
+        user: users
+      })
+      .from(leaveRequests)
+      .innerJoin(users, eq(leaveRequests.userId, users.id))
+      .where(eq(leaveRequests.status, 'pending'))
+      .orderBy(desc(leaveRequests.requestDate));
+  }
+
+  async respondToLeaveRequest(id: number, status: 'approved' | 'rejected', approvedById: number, notes?: string): Promise<LeaveRequest | undefined> {
+    // Let the database handle the date
+    const [updatedRequest] = await db
+      .update(leaveRequests)
+      .set({
+        status,
+        approvedById,
+        responseDate: new Date(), // Let Drizzle handle the date conversion
+        responseNotes: notes || null
+      })
+      .where(eq(leaveRequests.id, id))
+      .returning();
+      
+    return updatedRequest;
+  }
+}
+
+// Import the db instance
+import { db } from "./db";
+
+// Create a database storage instance
+export const storage = new DatabaseStorage();

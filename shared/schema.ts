@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 // User Roles
 export const roleEnum = pgEnum('role', ['admin', 'employee', 'manager']);
@@ -51,6 +52,14 @@ export const attendanceStatusEnum = pgEnum('attendance_status', [
   'on_leave'
 ]);
 
+// Attendance Method Enum
+export const attendanceMethodEnum = pgEnum('attendance_method', [
+  'qr_code',
+  'biometric',
+  'manual',
+  'geo_location'
+]);
+
 // User/Employee Table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -78,8 +87,8 @@ export const attendance = pgTable("attendance", {
   checkInTime: time("check_in_time"),
   checkOutTime: time("check_out_time"),
   status: attendanceStatusEnum("status").default('present'),
-  checkInMethod: text("check_in_method"), // QR, biometric, manual
-  checkOutMethod: text("check_out_method"),
+  checkInMethod: attendanceMethodEnum("check_in_method").default('manual'),
+  checkOutMethod: attendanceMethodEnum("check_out_method").default('manual'),
   notes: text("notes"),
 });
 
@@ -97,6 +106,32 @@ export const leaveRequests = pgTable("leave_requests", {
   responseDate: timestamp("response_date"),
   responseNotes: text("response_notes"),
 });
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  attendances: many(attendance),
+  leaveRequests: many(leaveRequests),
+  approvals: many(leaveRequests, { relationName: "approver" }),
+}));
+
+export const attendanceRelations = relations(attendance, ({ one }) => ({
+  user: one(users, {
+    fields: [attendance.userId],
+    references: [users.id],
+  }),
+}));
+
+export const leaveRequestsRelations = relations(leaveRequests, ({ one }) => ({
+  user: one(users, {
+    fields: [leaveRequests.userId],
+    references: [users.id],
+  }),
+  approver: one(users, {
+    fields: [leaveRequests.approvedById],
+    references: [users.id],
+    relationName: "approver",
+  }),
+}));
 
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -125,3 +160,21 @@ export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 
 export type LeaveRequest = typeof leaveRequests.$inferSelect;
 export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
+
+// Additional Types for Frontend
+export type UserWithAttendance = User & { 
+  attendances: Attendance[] 
+};
+
+export type UserWithLeaveRequests = User & { 
+  leaveRequests: LeaveRequest[] 
+};
+
+export type AttendanceWithUser = Attendance & { 
+  user: User 
+};
+
+export type LeaveRequestWithUser = LeaveRequest & { 
+  user: User,
+  approver?: User
+};

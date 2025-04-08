@@ -80,7 +80,7 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
   
   const createLeaveMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/leaves", data);
+      return await apiRequest("POST", "/api/leave-requests", data);
     },
     onSuccess: () => {
       toast({
@@ -88,7 +88,7 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
         description: "Leave request has been submitted successfully.",
         variant: "default",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/leaves"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       form.reset();
       onClose();
@@ -105,7 +105,7 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
   const onSubmit = (values: FormValues) => {
     // Convert string values to appropriate types
     const payload = {
-      employeeId: parseInt(values.employeeId),
+      userId: parseInt(values.employeeId),
       startDate: new Date(values.startDate),
       endDate: new Date(values.endDate),
       type: values.type,

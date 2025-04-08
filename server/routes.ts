@@ -5,7 +5,12 @@ import {
   insertUserSchema, 
   insertAttendanceSchema, 
   insertLeaveRequestSchema,
-  leaveStatusEnum 
+  leaveStatusEnum,
+  roleEnum,
+  departmentEnum,
+  leaveTypeEnum,
+  attendanceStatusEnum,
+  attendanceMethodEnum
 } from "@shared/schema";
 import session from "express-session";
 import passport from "passport";
@@ -97,12 +102,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Enums endpoint - provides all enum values for the client
   app.get("/api/enums", (_req, res) => {
     res.json({
-      roles: roleEnum.enumValues,
-      departments: departmentEnum.enumValues,
-      leaveStatuses: leaveStatusEnum.enumValues,
-      leaveTypes: leaveTypeEnum.enumValues,
-      attendanceStatuses: attendanceStatusEnum.enumValues,
-      attendanceMethods: attendanceMethodEnum.enumValues
+      roles: ['admin', 'employee', 'manager'],
+      departments: [
+        'engineering',
+        'marketing',
+        'sales',
+        'hr',
+        'finance',
+        'operations',
+        'design',
+        'product',
+        'customer_support'
+      ],
+      leaveStatuses: ['pending', 'approved', 'rejected'],
+      leaveTypes: [
+        'annual',
+        'sick',
+        'personal',
+        'maternity',
+        'paternity',
+        'bereavement',
+        'unpaid'
+      ],
+      attendanceStatuses: [
+        'present',
+        'absent',
+        'late',
+        'half_day',
+        'on_leave'
+      ],
+      attendanceMethods: [
+        'qr_code',
+        'biometric',
+        'manual',
+        'geo_location'
+      ]
     });
   });
 

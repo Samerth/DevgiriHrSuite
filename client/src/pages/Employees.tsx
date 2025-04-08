@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -116,32 +116,50 @@ export default function Employees() {
   // State to store locally added employees
   const [localEmployees, setLocalEmployees] = useState<User[]>([]);
 
-  const { data: users, isLoading } = useQuery<User[]>({
+  // Separate state to track if we're using API data or local data
+  const [usingLocalData, setUsingLocalData] = useState(false);
+  
+  const { data: apiUsers, isLoading, isError } = useQuery<User[]>({
     queryKey: ['/api/users', searchQuery, department, localEmployees.length],
     queryFn: async () => {
       try {
         const url = `/api/users/search?q=${encodeURIComponent(searchQuery)}${department && department !== "all" ? `&department=${encodeURIComponent(department)}` : ''}`;
         const res = await fetch(url, { credentials: 'include' });
         if (!res.ok) throw new Error('Failed to fetch employees');
+        setUsingLocalData(false);
         return res.json();
       } catch (error) {
         console.error("Error fetching employees:", error);
-        // Combine default employees with locally added employees
-        const combinedEmployees = [...defaultEmployees, ...localEmployees];
-        
-        // Filter based on search and department
-        return combinedEmployees.filter(employee => {
-          const matchesSearch = searchQuery === "" || 
-            `${employee.firstName} ${employee.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            employee.email?.toLowerCase().includes(searchQuery.toLowerCase());
-          
-          const matchesDepartment = department === "all" || employee.department === department;
-          
-          return matchesSearch && matchesDepartment;
-        });
+        setUsingLocalData(true);
+        throw error;
       }
     },
   });
+  
+  // Combine and filter employees for display
+  const filteredLocalEmployees = useMemo(() => {
+    // Combine default employees with locally added employees
+    const combinedEmployees = [...defaultEmployees, ...localEmployees];
+    
+    // Filter based on search and department
+    return combinedEmployees.filter(employee => {
+      const matchesSearch = searchQuery === "" || 
+        `${employee.firstName} ${employee.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        employee.email?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesDepartment = department === "all" || employee.department === department;
+      
+      return matchesSearch && matchesDepartment;
+    });
+  }, [searchQuery, department, localEmployees]);
+  
+  // Use API data if available, otherwise use local data
+  const users = useMemo(() => {
+    if (isError || usingLocalData) {
+      return filteredLocalEmployees;
+    }
+    return apiUsers || filteredLocalEmployees;
+  }, [apiUsers, filteredLocalEmployees, isError, usingLocalData]);
 
   const handleEmployeeSelect = (employee: User) => {
     setSelectedEmployee(employee);
@@ -204,7 +222,14 @@ export default function Employees() {
           <Card>
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
-                <CardTitle>Employee Directory</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle>Employee Directory</CardTitle>
+                  {usingLocalData && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                      Using Local Data
+                    </span>
+                  )}
+                </div>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
                   <TabsList>
                     <TabsTrigger value="all">All</TabsTrigger>

@@ -87,7 +87,19 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
         // If API fails, create a mock employee object for local state
         newEmployee = {
           id: Date.now(), // Use timestamp as temporary ID
-          ...userData,
+          username: userData.username,
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          email: userData.email || '',
+          role: userData.role || 'employee',
+          phone: userData.phone || '',
+          department: userData.department || 'engineering',
+          position: userData.position || '',
+          employeeId: userData.employeeId || `EMP${Date.now().toString().slice(-5)}`,
+          joinDate: userData.joinDate || new Date().toISOString().split('T')[0],
+          address: userData.address || '',
+          profileImageUrl: userData.profileImageUrl || '',
+          isActive: true,
           createdAt: new Date(),
           updatedAt: new Date()
         };

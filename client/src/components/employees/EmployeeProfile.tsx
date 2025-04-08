@@ -195,16 +195,16 @@ export default function EmployeeProfile({ employee, onClose }: EmployeeProfilePr
         {/* Employee Details Tabs */}
         <Card className="md:col-span-2">
           <CardHeader className="pb-2">
+            <h3 className="text-lg font-medium">Employee Details</h3>
+          </CardHeader>
+          <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
+              <TabsList className="mb-4">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="attendance">Attendance</TabsTrigger>
                 <TabsTrigger value="leaves">Leave History</TabsTrigger>
               </TabsList>
-            </Tabs>
-          </CardHeader>
-          <CardContent>
-            <TabsContent value="overview" className="mt-0">
+              <TabsContent value="overview" className="mt-0">
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-medium text-neutral-800 mb-3">Employee Information</h3>
@@ -400,6 +400,7 @@ export default function EmployeeProfile({ employee, onClose }: EmployeeProfilePr
                 </div>
               )}
             </TabsContent>
+          </Tabs>
           </CardContent>
         </Card>
       </div>

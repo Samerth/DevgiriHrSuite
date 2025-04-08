@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EmployeeCombobox } from "@/components/common/EmployeeCombobox";
 
 interface LeaveFormProps {
   isOpen: boolean;
@@ -132,23 +133,12 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Employee</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select employee" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {employeesData?.map((employee: any) => (
-                        <SelectItem key={employee.id} value={employee.id.toString()}>
-                          {employee.firstName} {employee.lastName} ({employee.employeeId})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <EmployeeCombobox
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Search for employee..."
+                    disabled={createLeaveMutation.isPending}
+                  />
                   <FormMessage />
                 </FormItem>
               )}

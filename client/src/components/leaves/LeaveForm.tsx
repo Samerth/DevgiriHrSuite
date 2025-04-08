@@ -160,11 +160,19 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {enumsData?.leaveTypes.map((type: string) => (
-                        <SelectItem key={type} value={type}>
-                          {type.charAt(0).toUpperCase() + type.slice(1)} Leave
-                        </SelectItem>
-                      ))}
+                      {enumsData?.leaveTypes ? (
+                        enumsData.leaveTypes.map((type: string) => (
+                          <SelectItem key={type} value={type}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)} Leave
+                          </SelectItem>
+                        ))
+                      ) : (
+                        ["annual", "sick", "personal", "unpaid", "maternity", "paternity"].map((type: string) => (
+                          <SelectItem key={type} value={type}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)} Leave
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

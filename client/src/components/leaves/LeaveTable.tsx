@@ -95,17 +95,17 @@ export default function LeaveTable() {
   const employeeMap = employeesData?.reduce((acc: Record<number, any>, employee: any) => {
     acc[employee.id] = employee;
     return acc;
-  }, {});
+  }, {}) || {};
   
   // Filter leaves by status
   const filteredLeaves = leavesData?.filter((leave: any) => {
     if (statusFilter === "all") return true;
     return leave.status === statusFilter;
-  });
+  }) || [];
   
   // Merge leave data with employee data
-  const leavesWithEmployees = filteredLeaves?.map((leave: any) => {
-    const employee = employeeMap?.[leave.userId];
+  const leavesWithEmployees = filteredLeaves.map((leave: any) => {
+    const employee = employeeMap[leave.userId];
     return {
       ...leave,
       employee: employee || { firstName: 'Unknown', lastName: 'Employee', department: '-' }
@@ -218,7 +218,7 @@ export default function LeaveTable() {
                           {getLeaveStatusLabel(leave.status)}
                         </span>
                       </TableCell>
-                      <TableCell>{formatDate(leave.appliedOn)}</TableCell>
+                      <TableCell>{formatDate(leave.requestDate)}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

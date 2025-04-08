@@ -32,3 +32,20 @@ export interface QRAttendanceData {
   type: 'checkIn' | 'checkOut';
   token: string; // For security
 }
+
+// Attendance Statistics
+export interface AttendanceStats {
+  totalAttendanceToday: number;
+  onTime: number;
+  late: number;
+  departmentalBreakdown: { department: string; count: number }[];
+  attendanceByHour: { hour: number; count: number }[];
+  recentActivity: {
+    id: number;
+    userId: number;
+    userName: string;
+    time: string;
+    type: string;
+    status: string;
+  }[];
+}

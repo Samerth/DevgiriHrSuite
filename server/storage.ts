@@ -25,6 +25,21 @@ export interface IStorage {
   getUserAttendanceByDateRange(userId: number, startDate: Date, endDate: Date): Promise<Attendance[]>;
   updateAttendance(id: number, attendance: Partial<InsertAttendance>): Promise<Attendance | undefined>;
   getTodayAttendance(): Promise<(Attendance & { user: User })[]>;
+  getAttendanceStatistics(): Promise<{
+    totalAttendanceToday: number;
+    onTime: number;
+    late: number;
+    departmentalBreakdown: { department: string; count: number }[];
+    attendanceByHour: { hour: number; count: number }[];
+    recentActivity: {
+      id: number;
+      userId: number;
+      userName: string;
+      time: string;
+      type: string;
+      status: string;
+    }[];
+  }>;
   
   // Leave Requests
   createLeaveRequest(leaveRequest: InsertLeaveRequest): Promise<LeaveRequest>;
@@ -275,6 +290,107 @@ export class MemStorage implements IStorage {
     this.leaveRequests.set(id, updatedLeaveRequest);
     return updatedLeaveRequest;
   }
+  
+  async getAttendanceStatistics(): Promise<{
+    totalAttendanceToday: number;
+    onTime: number;
+    late: number;
+    departmentalBreakdown: { department: string; count: number }[];
+    attendanceByHour: { hour: number; count: number }[];
+    recentActivity: {
+      id: number;
+      userId: number;
+      userName: string;
+      time: string;
+      type: string;
+      status: string;
+    }[];
+  }> {
+    const today = new Date().toISOString().split('T')[0];
+    const allUsers = Array.from(this.users.values());
+    
+    // Get today's attendance
+    const todayAttendance = Array.from(this.attendance.values())
+      .filter(att => new Date(att.date).toISOString().split('T')[0] === today);
+    
+    // Count on-time vs late
+    const onTime = todayAttendance.filter(att => att.status === 'present').length;
+    const late = todayAttendance.filter(att => att.status === 'late').length;
+    
+    // Departmental breakdown
+    const departmentMap = new Map<string, number>();
+    for (const att of todayAttendance) {
+      const user = this.users.get(att.userId);
+      if (user && user.department) {
+        const dept = user.department;
+        departmentMap.set(dept, (departmentMap.get(dept) || 0) + 1);
+      }
+    }
+    
+    const departmentalBreakdown = Array.from(departmentMap.entries()).map(([department, count]) => ({
+      department,
+      count
+    }));
+    
+    // Attendance by hour
+    const hourMap = new Map<number, number>();
+    for (const att of todayAttendance) {
+      if (att.checkInTime) {
+        const checkInDate = new Date(att.checkInTime);
+        const hour = checkInDate.getHours();
+        hourMap.set(hour, (hourMap.get(hour) || 0) + 1);
+      }
+    }
+    
+    const attendanceByHour = Array.from(hourMap.entries())
+      .map(([hour, count]) => ({ hour, count }))
+      .sort((a, b) => a.hour - b.hour);
+    
+    // Recent activity - get the 5 most recent check-ins/outs
+    const recentActivity = todayAttendance
+      .filter(att => att.checkInTime || att.checkOutTime)
+      .flatMap(att => {
+        const user = this.users.get(att.userId);
+        if (!user) return [];
+        
+        const activities = [];
+        
+        if (att.checkInTime) {
+          activities.push({
+            id: att.id,
+            userId: att.userId,
+            userName: `${user.firstName} ${user.lastName}`,
+            time: new Date(att.checkInTime).toLocaleTimeString(),
+            type: 'Check In',
+            status: att.status
+          });
+        }
+        
+        if (att.checkOutTime) {
+          activities.push({
+            id: att.id,
+            userId: att.userId,
+            userName: `${user.firstName} ${user.lastName}`,
+            time: new Date(att.checkOutTime).toLocaleTimeString(),
+            type: 'Check Out',
+            status: att.status
+          });
+        }
+        
+        return activities;
+      })
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 5);
+    
+    return {
+      totalAttendanceToday: todayAttendance.length,
+      onTime,
+      late,
+      departmentalBreakdown,
+      attendanceByHour,
+      recentActivity
+    };
+  }
 }
 
 // Database Storage implementation
@@ -519,6 +635,116 @@ export class DatabaseStorage implements IStorage {
       .returning();
       
     return updatedRequest;
+  }
+  
+  async getAttendanceStatistics(): Promise<{
+    totalAttendanceToday: number;
+    onTime: number;
+    late: number;
+    departmentalBreakdown: { department: string; count: number }[];
+    attendanceByHour: { hour: number; count: number }[];
+    recentActivity: {
+      id: number;
+      userId: number;
+      userName: string;
+      time: string;
+      type: string;
+      status: string;
+    }[];
+  }> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get today's attendance with user information
+    const todayAttendance = await db
+      .select({
+        id: attendance.id,
+        userId: attendance.userId,
+        date: attendance.date,
+        checkInTime: attendance.checkInTime,
+        checkOutTime: attendance.checkOutTime,
+        status: attendance.status,
+        checkInMethod: attendance.checkInMethod,
+        checkOutMethod: attendance.checkOutMethod,
+        notes: attendance.notes,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        department: users.department
+      })
+      .from(attendance)
+      .innerJoin(users, eq(attendance.userId, users.id))
+      .where(eq(attendance.date, today));
+    
+    // Count on-time vs late
+    const onTime = todayAttendance.filter(att => att.status === 'present').length;
+    const late = todayAttendance.filter(att => att.status === 'late').length;
+    
+    // Departmental breakdown
+    const departmentMap = new Map<string, number>();
+    for (const att of todayAttendance) {
+      if (att.department) {
+        const dept = att.department;
+        departmentMap.set(dept, (departmentMap.get(dept) || 0) + 1);
+      }
+    }
+    
+    const departmentalBreakdown = Array.from(departmentMap.entries()).map(([department, count]) => ({
+      department,
+      count
+    }));
+    
+    // Attendance by hour
+    const hourMap = new Map<number, number>();
+    for (const att of todayAttendance) {
+      if (att.checkInTime) {
+        const checkInDate = new Date(att.checkInTime);
+        const hour = checkInDate.getHours();
+        hourMap.set(hour, (hourMap.get(hour) || 0) + 1);
+      }
+    }
+    
+    const attendanceByHour = Array.from(hourMap.entries())
+      .map(([hour, count]) => ({ hour, count }))
+      .sort((a, b) => a.hour - b.hour);
+    
+    // Recent activity - we'll create an array of check-in and check-out activities
+    const activities = [];
+    for (const att of todayAttendance) {
+      if (att.checkInTime) {
+        activities.push({
+          id: att.id,
+          userId: att.userId,
+          userName: `${att.firstName} ${att.lastName}`,
+          time: new Date(att.checkInTime).toLocaleTimeString(),
+          type: 'Check In',
+          status: att.status
+        });
+      }
+      
+      if (att.checkOutTime) {
+        activities.push({
+          id: att.id,
+          userId: att.userId,
+          userName: `${att.firstName} ${att.lastName}`,
+          time: new Date(att.checkOutTime).toLocaleTimeString(),
+          type: 'Check Out',
+          status: att.status
+        });
+      }
+    }
+    
+    // Sort by time (newest first) and take only the most recent 5
+    const recentActivity = activities
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 5);
+    
+    return {
+      totalAttendanceToday: todayAttendance.length,
+      onTime,
+      late,
+      departmentalBreakdown,
+      attendanceByHour,
+      recentActivity
+    };
   }
 }
 

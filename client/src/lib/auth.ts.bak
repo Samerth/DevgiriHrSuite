@@ -1,0 +1,32 @@
+import { createContext, useContext, useState, ReactNode } from 'react';
+
+// Simplified auth context for demo purposes
+interface AuthContextType {
+  isAuthenticated: boolean;
+  user: any | null;
+}
+
+const AuthContext = createContext<AuthContextType>({
+  isAuthenticated: true, // Always authenticated for demo
+  user: null
+});
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  // Simplified provider that always sets isAuthenticated to true for demo
+  const [authState] = useState({
+    isAuthenticated: true,
+    user: {
+      id: 1,
+      username: "admin",
+      role: "admin"
+    }
+  });
+  
+  return (
+    <AuthContext.Provider value={authState}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export const useAuth = () => useContext(AuthContext);

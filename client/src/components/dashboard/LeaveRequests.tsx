@@ -102,8 +102,12 @@ export default function LeaveRequests({ pendingLeaves, isLoading = false }: Leav
                   <div className="flex items-center mb-1">
                     <Calendar className="text-neutral-400 mr-1 h-3.5 w-3.5" />
                     <span>
-                      {format(parseISO(leave.startDate.toString()), 'MMM d, yyyy')} - {format(parseISO(leave.endDate.toString()), 'MMM d, yyyy')} 
-                      ({differenceInDays(parseISO(leave.endDate.toString()), parseISO(leave.startDate.toString())) + 1} days)
+                      {format(leave.startDate instanceof Date ? leave.startDate : new Date(leave.startDate), 'MMM d, yyyy')} - 
+                      {format(leave.endDate instanceof Date ? leave.endDate : new Date(leave.endDate), 'MMM d, yyyy')} 
+                      ({differenceInDays(
+                        leave.endDate instanceof Date ? leave.endDate : new Date(leave.endDate),
+                        leave.startDate instanceof Date ? leave.startDate : new Date(leave.startDate)
+                      ) + 1} days)
                     </span>
                   </div>
                   <div className="flex items-start">

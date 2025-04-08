@@ -40,16 +40,16 @@ export default function LeaveTable() {
   const { toast } = useToast();
   
   const { data: leavesData, isLoading: leavesLoading } = useQuery({
-    queryKey: ["/api/leaves"],
+    queryKey: ["/api/leave-requests"],
   });
   
   const { data: employeesData, isLoading: employeesLoading } = useQuery({
-    queryKey: ["/api/employees"],
+    queryKey: ["/api/users"],
   });
   
   const approveLeaveMutation = useMutation({
     mutationFn: async (leaveId: number) => {
-      return await apiRequest("PUT", `/api/leaves/${leaveId}/approve`, {});
+      return await apiRequest("PUT", `/api/leave-requests/${leaveId}/respond`, { status: 'approved' });
     },
     onSuccess: () => {
       toast({
@@ -57,7 +57,7 @@ export default function LeaveTable() {
         description: "The leave request has been approved successfully.",
         variant: "default",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/leaves"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
     onError: (error: any) => {
@@ -71,7 +71,7 @@ export default function LeaveTable() {
   
   const rejectLeaveMutation = useMutation({
     mutationFn: async (leaveId: number) => {
-      return await apiRequest("PUT", `/api/leaves/${leaveId}/reject`, {});
+      return await apiRequest("PUT", `/api/leave-requests/${leaveId}/respond`, { status: 'rejected' });
     },
     onSuccess: () => {
       toast({
@@ -79,7 +79,7 @@ export default function LeaveTable() {
         description: "The leave request has been rejected.",
         variant: "default",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/leaves"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
     onError: (error: any) => {
@@ -105,7 +105,7 @@ export default function LeaveTable() {
   
   // Merge leave data with employee data
   const leavesWithEmployees = filteredLeaves?.map((leave: any) => {
-    const employee = employeeMap?.[leave.employeeId];
+    const employee = employeeMap?.[leave.userId];
     return {
       ...leave,
       employee: employee || { firstName: 'Unknown', lastName: 'Employee', department: '-' }

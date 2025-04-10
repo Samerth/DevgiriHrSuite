@@ -130,18 +130,16 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
 
       if (existingAttendance && !existingAttendance.checkOutTime) {
         // Update with check-out
-        markAttendanceMutation.mutate({
-          employeeId: scannedEmployeeId,
-          checkOutTime: now.toTimeString().split(' ')[0],
+        await apiRequest('PUT', `/api/attendance/${existingAttendance.id}`, {
+          checkOutTime: now.toISOString(),
           checkOutMethod: 'qr_code'
-        }, {
-          onSuccess: () => {
-            toast({
-              title: "Check-out recorded!",
-              description: "Your check-out has been successfully recorded.",
-            });
-          }
         });
+        
+        toast({
+          title: "Check-out recorded!",
+          description: "Your check-out has been successfully recorded.",
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/attendance/today'] });
       } else {
         // New check-in
         markAttendanceMutation.mutate({ 

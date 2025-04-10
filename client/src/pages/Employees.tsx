@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -17,12 +17,24 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, UserPlus, Upload, Database } from "lucide-react";
+import { Plus, Search, UserPlus, Upload, Database, Trash2 } from "lucide-react";
 import EmployeeTable from "@/components/employees/EmployeeTable";
 import AddEmployeeModal from "@/components/employees/AddEmployeeModal";
 import EmployeeProfile from "@/components/employees/EmployeeProfile";
 import BulkImportForm from "@/components/employees/BulkImportForm";
 import { User } from "@shared/schema";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 // Default employee data for development
 const defaultEmployees: User[] = [
@@ -109,6 +121,8 @@ const defaultEmployees: User[] = [
 ];
 
 export default function Employees() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [department, setDepartment] = useState("");
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -157,11 +171,20 @@ export default function Employees() {
   
   // Use API data if available, otherwise use local data
   const users = useMemo(() => {
-    if (isError || usingLocalData) {
-      return filteredLocalEmployees;
+    let filteredUsers = isError || usingLocalData ? filteredLocalEmployees : (apiUsers || filteredLocalEmployees);
+    
+    // Filter based on active tab
+    if (activeTab === 'active') {
+      filteredUsers = filteredUsers.filter(user => user.isActive);
+    } else if (activeTab === 'inactive') {
+      filteredUsers = filteredUsers.filter(user => !user.isActive);
+    } else if (activeTab === 'on-leave') {
+      // TODO: Implement on-leave filtering when leave status is available
+      filteredUsers = filteredUsers.filter(user => user.isActive);
     }
-    return apiUsers || filteredLocalEmployees;
-  }, [apiUsers, filteredLocalEmployees, isError, usingLocalData]);
+    
+    return filteredUsers;
+  }, [apiUsers, filteredLocalEmployees, isError, usingLocalData, activeTab]);
 
   const handleEmployeeSelect = (employee: User) => {
     setSelectedEmployee(employee);
@@ -242,6 +265,7 @@ export default function Employees() {
                   <TabsList>
                     <TabsTrigger value="all">All</TabsTrigger>
                     <TabsTrigger value="active">Active</TabsTrigger>
+                    <TabsTrigger value="inactive">Inactive</TabsTrigger>
                     <TabsTrigger value="on-leave">On Leave</TabsTrigger>
                   </TabsList>
                 </Tabs>

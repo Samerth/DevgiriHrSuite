@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "@shared/schema";
+import * as schema from "./db/schema";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
@@ -9,10 +9,8 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-// Create postgres client
 const client = postgres(DATABASE_URL);
 
-// Create drizzle instance
 export const db = drizzle(client, { schema });
 
 export async function initializeDatabase() {

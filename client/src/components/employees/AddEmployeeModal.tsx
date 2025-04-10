@@ -29,6 +29,7 @@ import {
 import { insertUserSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import QRCode from "qrcode";
 
 interface AddEmployeeModalProps {
   open: boolean;
@@ -36,11 +37,33 @@ interface AddEmployeeModalProps {
   onEmployeeAdded?: (employee: any) => void;
 }
 
-const formSchema = insertUserSchema.extend({
-  confirmPassword: z.string().min(1, "Please confirm your password"),
-}).refine((data) => data.password === data.confirmPassword, {
-  path: ["confirmPassword"],
-  message: "Passwords don't match",
+interface UserData {
+  username: string;
+  password: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  department: string;
+  position: string;
+  employeeId: string;
+  qrCode: string;
+  joinDate: string;
+}
+
+const formSchema = z.object({
+  username: z.string().min(2, "Username is required"),
+  email: z.string().email("Invalid email address"),
+  firstName: z.string().min(2, "First name is required"),
+  lastName: z.string().min(2, "Last name is required"),
+  role: z.enum(["admin", "manager", "employee"]),
+  phone: z.string().optional(),
+  department: z.string(),
+  position: z.string(),
+  employeeId: z.string(),
+  joinDate: z.string(),
+  address: z.string().optional(),
+  profileImageUrl: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -53,14 +76,12 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
     resolver: zodResolver(formSchema),
     defaultValues: {
       username: "",
-      password: "",
-      confirmPassword: "",
       email: "",
       firstName: "",
       lastName: "",
       role: "employee",
       phone: "",
-      department: undefined,
+      department: "engineering",
       position: "",
       employeeId: "",
       joinDate: new Date().toISOString().split('T')[0],
@@ -69,12 +90,37 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
     },
   });
 
+  // Helper function to ensure string values
+  const getFieldValue = (value: string | null | undefined) => value || "";
+
   const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
 
     try {
-      // Remove confirmPassword from payload
-      const { confirmPassword, ...userData } = data;
+      // Generate a unique QR code for the employee
+      const qrData = {
+        id: data.employeeId,
+        type: 'employee',
+        timestamp: new Date().toISOString()
+      };
+      
+      // Store the QR data as a string
+      const qrCodeData = JSON.stringify(qrData);
+
+      // Add a default password for the user
+      const userData: UserData = {
+        username: data.username,
+        password: "changeme123", // Default password that should be changed on first login
+        email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: data.role,
+        department: data.department,
+        position: data.position,
+        employeeId: data.employeeId,
+        qrCode: qrCodeData, // Store the structured QR data
+        joinDate: data.joinDate ? new Date(data.joinDate).toISOString() : new Date().toISOString()
+      };
       
       let newEmployee;
       try {
@@ -82,26 +128,13 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
         newEmployee = await apiRequest('POST', '/api/users', userData);
         queryClient.invalidateQueries({ queryKey: ['/api/users'] });
         queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
-      } catch (apiError) {
-        console.error("API error:", apiError);
+      } catch (error) {
+        console.error("API error:", error);
         // If API fails, create a mock employee object for local state
         newEmployee = {
           id: Date.now(), // Use timestamp as temporary ID
-          username: userData.username,
-          firstName: userData.firstName || '',
-          lastName: userData.lastName || '',
-          email: userData.email || '',
-          role: userData.role || 'employee',
-          phone: userData.phone || '',
-          department: userData.department || 'engineering',
-          position: userData.position || '',
-          employeeId: userData.employeeId || `EMP${Date.now().toString().slice(-5)}`,
-          joinDate: userData.joinDate || new Date().toISOString().split('T')[0],
-          address: userData.address || '',
-          profileImageUrl: userData.profileImageUrl || '',
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          ...userData,
+          isActive: true
         };
       }
       
@@ -118,10 +151,11 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
       form.reset();
       onClose();
     } catch (error) {
+      console.error("Error adding employee:", error);
       toast({
+        title: "Error",
+        description: "Failed to add employee. Please try again.",
         variant: "destructive",
-        title: "Failed to add employee",
-        description: (error as Error).message || "An unexpected error occurred",
       });
     } finally {
       setIsSubmitting(false);
@@ -201,7 +235,11 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="+91 12345 67890" {...field} />
+                      <Input
+                        placeholder="+91 12345 67890"
+                        {...field}
+                        value={getFieldValue(form.watch("phone"))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -217,8 +255,8 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
                   <FormItem>
                     <FormLabel>Department</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      {...field}
+                      value={getFieldValue(form.watch("department"))}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -248,7 +286,11 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
                   <FormItem>
                     <FormLabel>Position</FormLabel>
                     <FormControl>
-                      <Input placeholder="Job title" {...field} />
+                      <Input
+                        placeholder="Job title"
+                        {...field}
+                        value={getFieldValue(form.watch("position"))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -259,12 +301,16 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="joinDate"
+                name="employeeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Join Date</FormLabel>
+                    <FormLabel>Employee ID</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input
+                        placeholder="EMP001"
+                        {...field}
+                        value={getFieldValue(form.watch("employeeId"))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -272,12 +318,16 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
               />
               <FormField
                 control={form.control}
-                name="employeeId"
+                name="joinDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Employee ID</FormLabel>
+                    <FormLabel>Join Date</FormLabel>
                     <FormControl>
-                      <Input placeholder="EMP001" {...field} />
+                      <Input
+                        type="date"
+                        {...field}
+                        value={getFieldValue(form.watch("joinDate"))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -292,45 +342,16 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
                 <FormItem>
                   <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="Full address" {...field} />
+                    <Input
+                      placeholder="Full address"
+                      {...field}
+                      value={getFieldValue(form.watch("address"))}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
 
             <FormField
               control={form.control}
@@ -339,8 +360,8 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
                 <FormItem>
                   <FormLabel>Role</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    {...field}
+                    value={getFieldValue(form.watch("role"))}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -350,7 +371,7 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
                     <SelectContent>
                       <SelectItem value="employee">Employee</SelectItem>
                       <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="admin">Administrator</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -363,14 +384,7 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <div className="flex items-center">
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-                    <span>Adding...</span>
-                  </div>
-                ) : (
-                  "Add Employee"
-                )}
+                {isSubmitting ? "Adding..." : "Add Employee"}
               </Button>
             </DialogFooter>
           </form>

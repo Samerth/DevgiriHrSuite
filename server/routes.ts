@@ -292,14 +292,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete user
   app.delete("/api/users/:id", requireAdmin, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteUser(id);
+      const userId = parseInt(req.params.id);
+      await storage.deleteUser(userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  // Permanently delete a specific user
+  app.delete("/api/users/:id/permanent", requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const success = await storage.permanentlyDeleteUser(userId);
       if (!success) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.json({ success });
+      res.json({ success: true, message: "User permanently deleted" });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  // Permanently delete inactive users
+  app.delete("/api/users/inactive", requireAdmin, async (req, res) => {
+    try {
+      const deletedCount = await storage.permanentlyDeleteInactiveUsers();
+      res.json({ 
+        success: true, 
+        message: `Successfully deleted ${deletedCount} inactive users` 
+      });
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
     }

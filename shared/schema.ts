@@ -73,6 +73,7 @@ export const users = pgTable("users", {
   department: departmentEnum("department"),
   position: text("position"),
   employeeId: text("employee_id").unique(),
+  qrCode: text("qr_code").unique(),
   joinDate: date("join_date"),
   address: text("address"),
   profileImageUrl: text("profile_image_url"),

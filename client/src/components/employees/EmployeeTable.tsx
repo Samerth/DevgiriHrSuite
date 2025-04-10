@@ -50,12 +50,22 @@ export default function EmployeeTable({ employees, onSelect }: EmployeeTableProp
     if (!employeeToDelete) return;
     
     try {
-      await apiRequest('DELETE', `/api/users/${employeeToDelete.id}`);
+      // If the user is already inactive, permanently delete them
+      if (!employeeToDelete.isActive) {
+        await apiRequest('DELETE', `/api/users/${employeeToDelete.id}/permanent`);
+        toast({
+          title: "Employee permanently deleted",
+          description: `${employeeToDelete.firstName} ${employeeToDelete.lastName} has been permanently removed from the database.`,
+        });
+      } else {
+        // Otherwise, just mark them as inactive
+        await apiRequest('DELETE', `/api/users/${employeeToDelete.id}`);
+        toast({
+          title: "Employee deactivated",
+          description: `${employeeToDelete.firstName} ${employeeToDelete.lastName} has been marked as inactive.`,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      toast({
-        title: "Employee deleted",
-        description: `${employeeToDelete.firstName} ${employeeToDelete.lastName} has been removed.`,
-      });
     } catch (error) {
       toast({
         variant: "destructive",
@@ -148,10 +158,11 @@ export default function EmployeeTable({ employees, onSelect }: EmployeeTableProp
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {employeeToDelete?.firstName} {employeeToDelete?.lastName}'s employee record.
-              This action cannot be undone.
+              {employeeToDelete?.isActive 
+                ? "Are you sure you want to delete this employee? This action cannot be undone."
+                : "Are you sure you want to permanently delete this inactive employee from the database? This action cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

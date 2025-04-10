@@ -106,8 +106,8 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
     // Convert string values to appropriate types
     const payload = {
       userId: parseInt(values.employeeId),
-      startDate: values.startDate,  // Use the date value directly from the form
-      endDate: values.endDate,      // Use the date value directly from the form
+      startDate: new Date(values.startDate),
+      endDate: new Date(values.endDate),
       type: values.type,
       reason: values.reason,
     };

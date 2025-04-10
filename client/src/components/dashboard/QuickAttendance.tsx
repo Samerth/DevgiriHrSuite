@@ -90,19 +90,59 @@ export default function QuickAttendance() {
             className={`w-32 h-32 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mb-4 bg-gray-50 ${isScanning ? 'animate-pulse' : ''}`}
           >
             {isScanning ? (
-              <QRCodeScanner onScan={(result) => {
+              <QRCodeScanner onScan={async (result) => {
                 try {
                   const qrData = JSON.parse(result);
                   if (qrData.id) {
-                    markAttendanceMutation.mutate({ 
-                      userId: parseInt(qrData.id.replace('EMP', '')), 
-                      checkInMethod: 'qr_code' 
-                    },
-                    {
-                      onSuccess: () => {
-                        setIsScanning(false);
-                      }
-                    });
+                    const employeeId = qrData.id;
+                    // First search for the user
+                    const searchResponse = await apiRequest('GET', `/api/users/search?q=${employeeId}`);
+                    const users = await searchResponse.json();
+                    const user = users.find((u: any) => u.employeeId === employeeId);
+                    
+                    if (!user) {
+                      throw new Error("Employee not found");
+                    }
+
+                    // Check if already checked in today
+                    const now = new Date();
+                    const todayDate = now.toISOString().split('T')[0];
+                    const attendanceResponse = await apiRequest('GET', `/api/attendance/user/${user.id}?date=${todayDate}`);
+                    const existingAttendance = await attendanceResponse.json();
+
+                    if (existingAttendance && !existingAttendance.checkOutTime) {
+                      // Update with check-out
+                      markAttendanceMutation.mutate({
+                        userId: user.id,
+                        checkOutTime: now.toTimeString().split(' ')[0],
+                        checkOutMethod: 'qr_code'
+                      }, {
+                        onSuccess: () => {
+                          setIsScanning(false);
+                          toast({
+                            title: "Check-out recorded!",
+                            description: "Your check-out has been successfully recorded.",
+                          });
+                        }
+                      });
+                    } else {
+                      // New check-in
+                      markAttendanceMutation.mutate({ 
+                        userId: user.id,
+                        checkInMethod: 'qr_code',
+                        date: todayDate,
+                        checkInTime: now.toTimeString().split(' ')[0],
+                        status: 'present'
+                      }, {
+                        onSuccess: () => {
+                          setIsScanning(false);
+                          toast({
+                            title: "Check-in recorded!",
+                            description: "Your check-in has been successfully recorded.",
+                          });
+                        }
+                      });
+                    }
                   }
                 } catch (error) {
                   console.error('Error parsing QR code:', error);

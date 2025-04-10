@@ -95,6 +95,7 @@ export default function QuickAttendance() {
                       userId: qrData.userId, 
                       checkInMethod: 'qr_code' 
                     });
+                    setIsScanning(false); // Stop scanning after successful read
                   }
                 } catch (error) {
                   console.error('Error parsing QR code:', error);

@@ -89,7 +89,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
     setIsScanning(false);
   };
 
-  const handleSuccessfulScan = (qrData: string) => {
+  const handleSuccessfulScan = async (qrData: string) => {
     try {
       // Parse the JSON data from the QR code
       const qrDataObj = JSON.parse(qrData);
@@ -107,12 +107,58 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
         });
         return;
       }
+
+      // First search for the user
+      const searchResponse = await apiRequest('GET', `/api/users/search?q=${scannedEmployeeId}`);
+      const users = await searchResponse.json();
+      const user = users.find((u: any) => u.employeeId === scannedEmployeeId);
       
-      // Mark attendance using the employee ID
-      markAttendanceMutation.mutate({ 
-        employeeId: scannedEmployeeId, 
-        checkInMethod: 'qr_code' 
-      });
+      if (!user) {
+        toast({
+          variant: "destructive",
+          title: "Employee not found",
+          description: "Could not find employee with this QR code.",
+        });
+        return;
+      }
+
+      // Check if already checked in today
+      const now = new Date();
+      const todayDate = now.toISOString().split('T')[0];
+      const attendanceResponse = await apiRequest('GET', `/api/attendance/user/${user.id}?date=${todayDate}`);
+      const existingAttendance = await attendanceResponse.json();
+
+      if (existingAttendance && !existingAttendance.checkOutTime) {
+        // Update with check-out
+        markAttendanceMutation.mutate({
+          employeeId: scannedEmployeeId,
+          checkOutTime: now.toTimeString().split(' ')[0],
+          checkOutMethod: 'qr_code'
+        }, {
+          onSuccess: () => {
+            toast({
+              title: "Check-out recorded!",
+              description: "Your check-out has been successfully recorded.",
+            });
+          }
+        });
+      } else {
+        // New check-in
+        markAttendanceMutation.mutate({ 
+          employeeId: scannedEmployeeId, 
+          checkInMethod: 'qr_code',
+          date: todayDate,
+          checkInTime: now.toTimeString().split(' ')[0],
+          status: 'present'
+        }, {
+          onSuccess: () => {
+            toast({
+              title: "Check-in recorded!",
+              description: "Your check-in has been successfully recorded.",
+            });
+          }
+        });
+      }
     } catch (error) {
       console.error("Error parsing QR code:", error);
       toast({

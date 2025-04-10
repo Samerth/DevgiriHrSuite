@@ -35,19 +35,19 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
       // First, find the user by employee ID
       const searchResponse = await apiRequest('GET', `/api/users/search?q=${data.employeeId}`);
       const users = await searchResponse.json();
-      
+
       // Find the user with the exact employee ID match
       const user = users.find((u: any) => u.employeeId === data.employeeId);
-      
+
       if (!user) {
         throw new Error("Employee not found");
       }
-      
+
       const now = new Date();
-      
+
       // Create a proper ISO timestamp for the check-in time
       const checkInTime = now.toISOString();
-      
+
       // Now use the user's ID for attendance
       const res = await apiRequest('POST', '/api/attendance', {
         userId: user.id,
@@ -94,11 +94,11 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
       // Parse the JSON data from the QR code
       const qrDataObj = JSON.parse(qrData);
       console.log("Parsed QR data:", qrDataObj);
-      
+
       // Extract the employee ID from the QR data
       const scannedEmployeeId = qrDataObj.id;
       console.log("Employee ID from QR:", scannedEmployeeId);
-      
+
       if (!scannedEmployeeId) {
         toast({
           variant: "destructive",
@@ -112,7 +112,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
       const searchResponse = await apiRequest('GET', `/api/users/search?q=${scannedEmployeeId}`);
       const users = await searchResponse.json();
       const user = users.find((u: any) => u.employeeId === scannedEmployeeId);
-      
+
       if (!user) {
         toast({
           variant: "destructive",
@@ -130,12 +130,12 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
 
       if (existingAttendance && !existingAttendance.checkOutTime) {
         // Update with check-out
-        const checkOutTime = new Date();
+        const checkOutTime = now.toISOString().split('.')[0] + 'Z'; // Format as ISO string without milliseconds
         await apiRequest('PUT', `/api/attendance/${existingAttendance.id}`, {
-          checkOutTime: checkOutTime.toISOString(),
+          checkOutTime,
           checkOutMethod: 'qr_code'
         });
-        
+
         toast({
           title: "Check-out recorded!",
           description: "Your check-out has been successfully recorded.",
@@ -181,7 +181,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
 
   const handleEmployeeIdSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!employeeId.trim()) {
       toast({
         variant: "destructive",
@@ -190,7 +190,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
       });
       return;
     }
-    
+
     // Mark attendance using the employee ID
     markAttendanceMutation.mutate({ 
       employeeId: employeeId.trim(), 
@@ -223,14 +223,14 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
             Use any of the methods below to mark your attendance.
           </DialogDescription>
         </DialogHeader>
-        
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
           <TabsList className="grid grid-cols-3 mb-4">
             <TabsTrigger value="qr">QR Code</TabsTrigger>
             <TabsTrigger value="biometric">Biometric</TabsTrigger>
             <TabsTrigger value="id">Employee ID</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="qr" className="flex flex-col items-center">
             <div 
               className={`w-full h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center relative overflow-hidden ${isScanning ? 'border-primary' : ''}`}
@@ -246,13 +246,13 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
                 </div>
               )}
             </div>
-            
+
             <p className="text-sm text-center mt-4 mb-2">
               {isScanning 
                 ? "Scanning... Please position your QR code in the camera view." 
                 : "Click below to start the QR code scanner."}
             </p>
-            
+
             <Button 
               onClick={isScanning ? stopScanner : startScanner}
               variant={isScanning ? "outline" : "default"}
@@ -261,7 +261,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
               {isScanning ? "Cancel Scan" : "Start Scanning"}
             </Button>
           </TabsContent>
-          
+
           <TabsContent value="biometric" className="flex flex-col items-center">
             <div className="w-full h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
               <div className="text-center">
@@ -269,11 +269,11 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
                 <p className="text-sm text-neutral-500">Use biometric verification</p>
               </div>
             </div>
-            
+
             <p className="text-sm text-center mt-4 mb-2">
               Click below to initiate biometric verification.
             </p>
-            
+
             <Button 
               onClick={handleBiometricVerification}
               disabled={markAttendanceMutation.isPending}
@@ -282,7 +282,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
               {markAttendanceMutation.isPending ? "Verifying..." : "Verify Biometric"}
             </Button>
           </TabsContent>
-          
+
           <TabsContent value="id" className="flex flex-col items-center">
             <div className="w-full">
               <form onSubmit={handleEmployeeIdSubmit} className="space-y-4">
@@ -299,7 +299,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
                     className="max-w-xs"
                   />
                 </div>
-                
+
                 <Button 
                   type="submit"
                   disabled={markAttendanceMutation.isPending || !employeeId}
@@ -311,7 +311,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
             </div>
           </TabsContent>
         </Tabs>
-        
+
         <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:space-x-2">
           <Button variant="outline" onClick={onClose}>
             Cancel

@@ -94,21 +94,13 @@ export default function QuickAttendance() {
                 try {
                   const qrData = JSON.parse(result);
                   if (qrData.id) {
-                    const now = new Date();
                     markAttendanceMutation.mutate({ 
                       userId: parseInt(qrData.id.replace('EMP', '')), 
-                      date: now.toISOString().split('T')[0],
-                      checkInTime: now.toTimeString().split(' ')[0],
-                      checkInMethod: 'qr_code',
-                      status: 'present'
+                      checkInMethod: 'qr_code' 
                     },
                     {
                       onSuccess: () => {
                         setIsScanning(false);
-                        // Invalidate all necessary queries
-                        queryClient.invalidateQueries({ queryKey: ['/api/attendance/today'] });
-                        queryClient.invalidateQueries({ queryKey: ['/api/attendance/statistics'] });
-                        queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
                       }
                     });
                   }

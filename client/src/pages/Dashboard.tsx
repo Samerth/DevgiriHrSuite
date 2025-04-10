@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import AttendanceOverview from "@/components/dashboard/AttendanceOverview";
-import QuickAttendance from "@/components/dashboard/QuickAttendance";
+
 import LeaveRequests from "@/components/dashboard/LeaveRequests";
 import { DashboardStats as DashboardStatsType } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -114,9 +114,6 @@ export default function Dashboard() {
 
         {/* Right Column */}
         <div className="space-y-6">
-          {/* Quick Attendance */}
-          <QuickAttendance />
-          
           {/* Pending Leave Requests */}
           <LeaveRequests 
             pendingLeaves={pendingLeaves || []} 

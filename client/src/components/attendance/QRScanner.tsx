@@ -130,8 +130,9 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
 
       if (existingAttendance && !existingAttendance.checkOutTime) {
         // Update with check-out
+        const checkOutTime = new Date();
         await apiRequest('PUT', `/api/attendance/${existingAttendance.id}`, {
-          checkOutTime: now.toISOString(),
+          checkOutTime: checkOutTime.toISOString(),
           checkOutMethod: 'qr_code'
         });
         

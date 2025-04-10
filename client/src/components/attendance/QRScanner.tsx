@@ -128,27 +128,27 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
       const attendanceResponse = await apiRequest('GET', `/api/attendance/user/${user.id}?date=${todayDate}`);
       const existingAttendance = await attendanceResponse.json();
 
+      // Format time as HH:mm:ss
+      const timeStr = now.toTimeString().slice(0, 8);
+
       if (existingAttendance && !existingAttendance.checkOutTime) {
         // Update with check-out
-        markAttendanceMutation.mutate({
-          employeeId: scannedEmployeeId,
-          checkOutTime: now.toTimeString().split(' ')[0],
+        await apiRequest('PUT', `/api/attendance/${existingAttendance.id}`, {
+          checkOutTime: timeStr,
           checkOutMethod: 'qr_code'
-        }, {
-          onSuccess: () => {
-            toast({
-              title: "Check-out recorded!",
-              description: "Your check-out has been successfully recorded.",
-            });
-          }
         });
+        toast({
+          title: "Check-out recorded!",
+          description: "Your check-out has been successfully recorded.",
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/attendance/today'] });
       } else {
         // New check-in
-        markAttendanceMutation.mutate({ 
-          employeeId: scannedEmployeeId, 
-          checkInMethod: 'qr_code',
+        await apiRequest('POST', '/api/attendance', {
+          userId: user.id,
           date: todayDate,
-          checkInTime: now.toTimeString().split(' ')[0],
+          checkInTime: timeStr,
+          checkInMethod: 'qr_code',
           status: 'present'
         }, {
           onSuccess: () => {

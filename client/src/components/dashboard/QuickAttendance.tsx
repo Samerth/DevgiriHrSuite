@@ -16,17 +16,10 @@ export default function QuickAttendance() {
 
   const markAttendanceMutation = useMutation({
     mutationFn: async (data: { userId: number; checkInMethod: string }) => {
-      const now = new Date();
-      const formattedDate = now.toISOString().split('T')[0];
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      const formattedTime = `${hours}:${minutes}:${seconds}`;
-
       const res = await apiRequest('POST', '/api/attendance', {
         userId: data.userId,
-        date: formattedDate,
-        checkInTime: formattedTime,
+        date: new Date().toISOString().split('T')[0],
+        checkInTime: new Date().toTimeString().split(' ')[0],
         checkInMethod: data.checkInMethod,
         status: 'present'
       });

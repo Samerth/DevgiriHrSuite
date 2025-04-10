@@ -383,9 +383,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If the user is checking in, make sure they haven't already checked in today
       if (attendanceData.checkInTime) {
+        // Convert the date string to a Date object
+        const dateObj = new Date(attendanceData.date);
+        
         const existingAttendance = await storage.getUserAttendanceByDate(
           attendanceData.userId, 
-          new Date(attendanceData.date)
+          dateObj
         );
         
         if (existingAttendance) {
@@ -398,9 +401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const attendance = await storage.createAttendance(attendanceData);
       res.status(201).json(attendance);
     } catch (error) {
-      if (error instanceof ZodError) {
-        return res.status(400).json({ error: error.message });
-      }
+      console.error("Error in attendance endpoint:", error);
       res.status(500).json({ error: (error as Error).message });
     }
   });

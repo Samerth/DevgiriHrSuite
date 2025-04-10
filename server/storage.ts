@@ -158,19 +158,15 @@ export class MemStorage implements IStorage {
 
   // Attendance Methods
   async createAttendance(attendanceData: InsertAttendance): Promise<Attendance> {
-    const id = this.currentAttendanceId++;
-    const newAttendance: Attendance = { 
-      ...attendanceData, 
-      id,
-      status: attendanceData.status || 'present',
-      checkInTime: attendanceData.checkInTime || null,
-      checkOutTime: attendanceData.checkOutTime || null,
-      checkInMethod: attendanceData.checkInMethod || null,
-      checkOutMethod: attendanceData.checkOutMethod || null,
-      notes: attendanceData.notes || null
+    const formattedData = {
+      ...attendanceData,
+      date: new Date(attendanceData.date),
+      checkInTime: attendanceData.checkInTime ? new Date(attendanceData.checkInTime) : null,
+      checkOutTime: attendanceData.checkOutTime ? new Date(attendanceData.checkOutTime) : null
     };
-    this.attendance.set(id, newAttendance);
-    return newAttendance;
+    
+    const result = await this.db.insert(attendance).values(formattedData).returning();
+    return result[0];
   }
 
   async getAttendance(id: number): Promise<Attendance | undefined> {
@@ -184,11 +180,20 @@ export class MemStorage implements IStorage {
   }
 
   async getUserAttendanceByDate(userId: number, date: Date): Promise<Attendance | undefined> {
-    const dateStr = date.toISOString().split('T')[0];
-    return Array.from(this.attendance.values()).find(att => 
-      att.userId === userId && 
-      new Date(att.date).toISOString().split('T')[0] === dateStr
-    );
+    // Ensure date is a valid Date object
+    const dateObj = date instanceof Date ? date : new Date(date);
+    const dateStr = dateObj.toISOString().split('T')[0];
+    
+    const result = await this.db.select()
+      .from(attendance)
+      .where(eq(attendance.userId, userId));
+    
+    return result.find(att => {
+      // Handle both Date objects and string dates
+      const attDate = att.date instanceof Date ? att.date : new Date(att.date);
+      const attDateStr = attDate.toISOString().split('T')[0];
+      return attDateStr === dateStr;
+    });
   }
 
   async getUserAttendanceByDateRange(userId: number, startDate: Date, endDate: Date): Promise<Attendance[]> {
@@ -494,7 +499,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAttendance(attendanceData: InsertAttendance): Promise<Attendance> {
-    const result = await this.db.insert(attendance).values(attendanceData).returning();
+    const formattedData = {
+      ...attendanceData,
+      date: new Date(attendanceData.date),
+      checkInTime: attendanceData.checkInTime ? new Date(attendanceData.checkInTime) : null,
+      checkOutTime: attendanceData.checkOutTime ? new Date(attendanceData.checkOutTime) : null
+    };
+    
+    const result = await this.db.insert(attendance).values(formattedData).returning();
     return result[0];
   }
 
@@ -511,20 +523,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserAttendanceByDate(userId: number, date: Date): Promise<Attendance | undefined> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
+    // Ensure date is a valid Date object
+    const dateObj = date instanceof Date ? date : new Date(date);
+    const dateStr = dateObj.toISOString().split('T')[0];
+    
     const result = await this.db.select()
       .from(attendance)
-      .where(
-        and(
-          eq(attendance.userId, userId),
-          between(attendance.date, startOfDay, endOfDay)
-        )
-      );
-    return result[0];
+      .where(eq(attendance.userId, userId));
+    
+    return result.find(att => {
+      // Handle both Date objects and string dates
+      const attDate = att.date instanceof Date ? att.date : new Date(att.date);
+      const attDateStr = attDate.toISOString().split('T')[0];
+      return attDateStr === dateStr;
+    });
   }
 
   async getUserAttendanceByDateRange(userId: number, startDate: Date, endDate: Date): Promise<Attendance[]> {
@@ -540,8 +552,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateAttendance(id: number, attendanceData: Partial<InsertAttendance>): Promise<Attendance | undefined> {
+    // Ensure date is properly formatted if it exists
+    const formattedData = attendanceData.date 
+      ? {
+          ...attendanceData,
+          date: attendanceData.date instanceof Date 
+            ? attendanceData.date 
+            : new Date(attendanceData.date)
+        }
+      : attendanceData;
+    
     const result = await this.db.update(attendance)
-      .set(attendanceData)
+      .set(formattedData)
       .where(eq(attendance.id, id))
       .returning();
     return result[0];

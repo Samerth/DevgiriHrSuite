@@ -31,13 +31,33 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
   const user = authState.user;
 
   const markAttendanceMutation = useMutation({
-    mutationFn: async (data: { userId: number; checkInMethod: string }) => {
+    mutationFn: async (data: { employeeId: string; checkInMethod: string }) => {
+      // First, find the user by employee ID
+      const searchResponse = await apiRequest('GET', `/api/users/search?q=${data.employeeId}`);
+      const users = await searchResponse.json();
+      
+      // Find the user with the exact employee ID match
+      const user = users.find((u: any) => u.employeeId === data.employeeId);
+      
+      if (!user) {
+        throw new Error("Employee not found");
+      }
+      
+      const now = new Date();
+      
+      // Create a proper ISO timestamp for the check-in time
+      const checkInTime = now.toISOString();
+      
+      // Now use the user's ID for attendance
       const res = await apiRequest('POST', '/api/attendance', {
-        userId: data.userId,
-        date: new Date().toISOString().split('T')[0],
-        checkInTime: new Date().toTimeString().split(' ')[0],
+        userId: user.id,
+        date: checkInTime, // Use the same timestamp for date
+        checkInTime: checkInTime,
         checkInMethod: data.checkInMethod,
-        status: 'present'
+        status: 'present',
+        checkOutTime: null,
+        checkOutMethod: null,
+        notes: null
       });
       return res.json();
     },
@@ -70,22 +90,37 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
   };
 
   const handleSuccessfulScan = (qrData: string) => {
-    // In a real app, the QR data would contain user ID or other identifiable information
-    const userId = parseInt(qrData);
-    
-    if (isNaN(userId)) {
+    try {
+      // Parse the JSON data from the QR code
+      const qrDataObj = JSON.parse(qrData);
+      console.log("Parsed QR data:", qrDataObj);
+      
+      // Extract the employee ID from the QR data
+      const scannedEmployeeId = qrDataObj.id;
+      console.log("Employee ID from QR:", scannedEmployeeId);
+      
+      if (!scannedEmployeeId) {
+        toast({
+          variant: "destructive",
+          title: "Invalid QR code",
+          description: "The QR code doesn't contain a valid employee ID.",
+        });
+        return;
+      }
+      
+      // Mark attendance using the employee ID
+      markAttendanceMutation.mutate({ 
+        employeeId: scannedEmployeeId, 
+        checkInMethod: 'qr_code' 
+      });
+    } catch (error) {
+      console.error("Error parsing QR code:", error);
       toast({
         variant: "destructive",
         title: "Invalid QR code",
-        description: "The QR code doesn't contain valid employee information.",
+        description: "The QR code format is not recognized.",
       });
-      return;
     }
-    
-    markAttendanceMutation.mutate({ 
-      userId, 
-      checkInMethod: 'qr_code' 
-    });
   };
 
   const handleBiometricVerification = () => {
@@ -93,7 +128,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
     // For demo purposes, we'll just simulate a successful verification
     if (user) {
       markAttendanceMutation.mutate({ 
-        userId: user.id, 
+        employeeId: user.employeeId, 
         checkInMethod: 'biometric' 
       });
     }
@@ -111,14 +146,11 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
       return;
     }
     
-    // In a real app, we would validate the employee ID against the database
-    // For demo, we'll just use the current user's ID
-    if (user) {
-      markAttendanceMutation.mutate({ 
-        userId: user.id, 
-        checkInMethod: 'manual_id' 
-      });
-    }
+    // Mark attendance using the employee ID
+    markAttendanceMutation.mutate({ 
+      employeeId: employeeId.trim(), 
+      checkInMethod: 'manual'
+    });
   };
 
   // Cleanup on unmount

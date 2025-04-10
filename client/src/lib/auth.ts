@@ -9,6 +9,7 @@ export interface User {
   lastName?: string;
   email?: string;
   department?: string;
+  employeeId: string;
 }
 
 // Dummy user for development
@@ -19,7 +20,8 @@ export const dummyUser: User = {
   firstName: "Admin",
   lastName: "User",
   email: "admin@example.com",
-  department: "Management"
+  department: "Management",
+  employeeId: "EMP001"
 };
 
 // Auth state type

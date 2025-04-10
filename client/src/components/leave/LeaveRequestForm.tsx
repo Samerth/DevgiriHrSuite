@@ -81,13 +81,19 @@ export default function LeaveRequestForm({ onSubmitSuccess }: LeaveRequestFormPr
     setIsSubmitting(true);
     
     try {
-      await apiRequest('POST', '/api/leave-requests', {
+      const response = await apiRequest('POST', '/api/leave-requests', {
         ...data,
         userId: user.id,
       });
       
-      queryClient.invalidateQueries({ queryKey: ['/api/leave-requests/user', user.id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/leave-requests/pending'] });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit leave request');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['/api/leave-requests/user', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/leave-requests/pending'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/leave-requests'] });
       
       toast({
         title: "Leave request submitted",

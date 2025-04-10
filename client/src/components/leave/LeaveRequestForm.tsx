@@ -82,15 +82,11 @@ export default function LeaveRequestForm({ onSubmitSuccess }: LeaveRequestFormPr
     
     try {
       await apiRequest('POST', '/api/leave-requests', {
+        ...data,
         userId: user.id,
-        type: data.type,
-        reason: data.reason,
-        startDate: new Date(data.startDate).toISOString(),
-        endDate: new Date(data.endDate).toISOString()
       });
       
       queryClient.invalidateQueries({ queryKey: ['/api/leave-requests/user', user.id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['/api/leave-requests/pending'] });
       
       toast({

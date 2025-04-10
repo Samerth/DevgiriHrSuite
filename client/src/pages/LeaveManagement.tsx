@@ -46,7 +46,7 @@ export default function LeaveManagement() {
         <h1 className="text-2xl font-bold text-neutral-800">Leave Management</h1>
         <Button onClick={() => setRequestFormOpen(true)}>
           <PlusCircle className="mr-2 h-4 w-4" />
-          Apply for Leave
+          Request Leave
         </Button>
       </div>
 

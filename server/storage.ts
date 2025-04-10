@@ -20,7 +20,7 @@ export interface IStorage {
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: number): Promise<boolean>;
   searchUsers(query: string, department?: string): Promise<User[]>;
-  
+
   // Attendance
   createAttendance(attendance: InsertAttendance): Promise<Attendance>;
   getAttendance(id: number): Promise<Attendance | undefined>;
@@ -44,7 +44,7 @@ export interface IStorage {
       status: string;
     }[];
   }>;
-  
+
   // Leave Requests
   createLeaveRequest(leaveRequest: InsertLeaveRequest): Promise<LeaveRequest>;
   getLeaveRequest(id: number): Promise<LeaveRequest | undefined>;
@@ -70,7 +70,7 @@ export class MemStorage implements IStorage {
     this.currentUserId = 1;
     this.currentAttendanceId = 1;
     this.currentLeaveRequestId = 1;
-    
+
     // Add some initial admin user
     this.createUser({
       username: "admin",
@@ -127,7 +127,7 @@ export class MemStorage implements IStorage {
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
     const user = this.users.get(id);
     if (!user) return undefined;
-    
+
     const updatedUser = { ...user, ...userData };
     this.users.set(id, updatedUser);
     return updatedUser;
@@ -136,7 +136,7 @@ export class MemStorage implements IStorage {
   async deleteUser(id: number): Promise<boolean> {
     const user = this.users.get(id);
     if (!user) return false;
-    
+
     // Soft delete by setting isActive to false
     this.users.set(id, { ...user, isActive: false });
     return true;
@@ -149,9 +149,9 @@ export class MemStorage implements IStorage {
         user.lastName.toLowerCase().includes(query.toLowerCase()) ||
         user.email.toLowerCase().includes(query.toLowerCase()) ||
         (user.employeeId && user.employeeId.toLowerCase().includes(query.toLowerCase()));
-      
+
       const matchesDepartment = !department || user.department === department;
-      
+
       return user.isActive && matchesQuery && matchesDepartment;
     });
   }
@@ -164,7 +164,7 @@ export class MemStorage implements IStorage {
       checkInTime: attendanceData.checkInTime ? new Date(attendanceData.checkInTime) : null,
       checkOutTime: attendanceData.checkOutTime ? new Date(attendanceData.checkOutTime) : null
     };
-    
+
     const result = await this.db.insert(attendance).values(formattedData).returning();
     return result[0];
   }
@@ -183,11 +183,11 @@ export class MemStorage implements IStorage {
     // Ensure date is a valid Date object
     const dateObj = date instanceof Date ? date : new Date(date);
     const dateStr = dateObj.toISOString().split('T')[0];
-    
+
     const result = await this.db.select()
       .from(attendance)
       .where(eq(attendance.userId, userId));
-    
+
     return result.find(att => {
       // Handle both Date objects and string dates
       const attDate = att.date instanceof Date ? att.date : new Date(att.date);
@@ -199,7 +199,7 @@ export class MemStorage implements IStorage {
   async getUserAttendanceByDateRange(userId: number, startDate: Date, endDate: Date): Promise<Attendance[]> {
     const start = startDate.getTime();
     const end = endDate.getTime();
-    
+
     return Array.from(this.attendance.values())
       .filter(att => {
         const attDate = new Date(att.date).getTime();
@@ -211,7 +211,7 @@ export class MemStorage implements IStorage {
   async updateAttendance(id: number, attendanceData: Partial<InsertAttendance>): Promise<Attendance | undefined> {
     const attendance = this.attendance.get(id);
     if (!attendance) return undefined;
-    
+
     const updatedAttendance = { ...attendance, ...attendanceData };
     this.attendance.set(id, updatedAttendance);
     return updatedAttendance;
@@ -219,7 +219,7 @@ export class MemStorage implements IStorage {
 
   async getTodayAttendance(): Promise<(Attendance & { user: User })[]> {
     const today = new Date().toISOString().split('T')[0];
-    
+
     return Array.from(this.attendance.values())
       .filter(att => new Date(att.date).toISOString().split('T')[0] === today)
       .map(att => {
@@ -264,7 +264,7 @@ export class MemStorage implements IStorage {
   async updateLeaveRequest(id: number, leaveRequestData: Partial<LeaveRequest>): Promise<LeaveRequest | undefined> {
     const leaveRequest = this.leaveRequests.get(id);
     if (!leaveRequest) return undefined;
-    
+
     const updatedLeaveRequest = { ...leaveRequest, ...leaveRequestData };
     this.leaveRequests.set(id, updatedLeaveRequest);
     return updatedLeaveRequest;
@@ -288,7 +288,7 @@ export class MemStorage implements IStorage {
   async respondToLeaveRequest(id: number, status: 'approved' | 'rejected', approvedById: number, notes?: string): Promise<LeaveRequest | undefined> {
     const leaveRequest = this.leaveRequests.get(id);
     if (!leaveRequest) return undefined;
-    
+
     const responseDate = new Date();
     const updatedLeaveRequest: LeaveRequest = {
       ...leaveRequest,
@@ -297,11 +297,11 @@ export class MemStorage implements IStorage {
       responseDate,
       responseNotes: notes || null
     };
-    
+
     this.leaveRequests.set(id, updatedLeaveRequest);
     return updatedLeaveRequest;
   }
-  
+
   async getAttendanceStatistics(): Promise<{
     totalAttendanceToday: number;
     onTime: number;
@@ -319,15 +319,15 @@ export class MemStorage implements IStorage {
   }> {
     const today = new Date().toISOString().split('T')[0];
     const allUsers = Array.from(this.users.values());
-    
+
     // Get today's attendance
     const todayAttendance = Array.from(this.attendance.values())
       .filter(att => new Date(att.date).toISOString().split('T')[0] === today);
-    
+
     // Count on-time vs late
     const onTime = todayAttendance.filter(att => att.status === 'present').length;
     const late = todayAttendance.filter(att => att.status === 'late').length;
-    
+
     // Departmental breakdown
     const departmentMap = new Map<string, number>();
     for (const att of todayAttendance) {
@@ -337,12 +337,12 @@ export class MemStorage implements IStorage {
         departmentMap.set(dept, (departmentMap.get(dept) || 0) + 1);
       }
     }
-    
+
     const departmentalBreakdown = Array.from(departmentMap.entries()).map(([department, count]) => ({
       department,
       count
     }));
-    
+
     // Attendance by hour
     const hourMap = new Map<number, number>();
     for (const att of todayAttendance) {
@@ -352,20 +352,20 @@ export class MemStorage implements IStorage {
         hourMap.set(hour, (hourMap.get(hour) || 0) + 1);
       }
     }
-    
+
     const attendanceByHour = Array.from(hourMap.entries())
       .map(([hour, count]) => ({ hour, count }))
       .sort((a, b) => a.hour - b.hour);
-    
+
     // Recent activity - get the 5 most recent check-ins/outs
     const recentActivity = todayAttendance
       .filter(att => att.checkInTime || att.checkOutTime)
       .flatMap(att => {
         const user = this.users.get(att.userId);
         if (!user) return [];
-        
+
         const activities = [];
-        
+
         if (att.checkInTime) {
           activities.push({
             id: att.id,
@@ -376,7 +376,7 @@ export class MemStorage implements IStorage {
             status: att.status || 'unknown'
           });
         }
-        
+
         if (att.checkOutTime) {
           activities.push({
             id: att.id,
@@ -387,12 +387,12 @@ export class MemStorage implements IStorage {
             status: att.status || 'unknown'
           });
         }
-        
+
         return activities;
       })
       .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
       .slice(0, 5);
-    
+
     return {
       totalAttendanceToday: todayAttendance.length,
       onTime,
@@ -469,7 +469,7 @@ export class DatabaseStorage implements IStorage {
       await this.db.update(users)
         .set({ isActive: false })
         .where(eq(users.id, id));
-      
+
       return true;
     } catch (error) {
       console.error('Error in deleteUser:', error);
@@ -479,7 +479,7 @@ export class DatabaseStorage implements IStorage {
 
   async searchUsers(query: string, department?: string): Promise<User[]> {
     let queryBuilder = this.db.select().from(users).where(eq(users.isActive, true));
-    
+
     if (query) {
       queryBuilder = queryBuilder.where(
         or(
@@ -490,11 +490,11 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-    
+
     if (department) {
       queryBuilder = queryBuilder.where(eq(users.department, department));
     }
-    
+
     return await queryBuilder;
   }
 
@@ -505,7 +505,7 @@ export class DatabaseStorage implements IStorage {
       checkInTime: attendanceData.checkInTime ? new Date(attendanceData.checkInTime) : null,
       checkOutTime: attendanceData.checkOutTime ? new Date(attendanceData.checkOutTime) : null
     };
-    
+
     const result = await this.db.insert(attendance).values(formattedData).returning();
     return result[0];
   }
@@ -526,11 +526,11 @@ export class DatabaseStorage implements IStorage {
     // Ensure date is a valid Date object
     const dateObj = date instanceof Date ? date : new Date(date);
     const dateStr = dateObj.toISOString().split('T')[0];
-    
+
     const result = await this.db.select()
       .from(attendance)
       .where(eq(attendance.userId, userId));
-    
+
     return result.find(att => {
       // Handle both Date objects and string dates
       const attDate = att.date instanceof Date ? att.date : new Date(att.date);
@@ -561,7 +561,7 @@ export class DatabaseStorage implements IStorage {
             : new Date(attendanceData.date)
         }
       : attendanceData;
-    
+
     const result = await this.db.update(attendance)
       .set(formattedData)
       .where(eq(attendance.id, id))
@@ -726,7 +726,7 @@ export class DatabaseStorage implements IStorage {
       // Delete all inactive users from the database
       const result = await this.db.delete(users)
         .where(eq(users.isActive, false));
-      
+
       return result.rowCount || 0;
     } catch (error) {
       console.error('Error in permanentlyDeleteInactiveUsers:', error);
@@ -734,17 +734,17 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async permanentlyDeleteUser(id: number): Promise<boolean> {
+  async permanentlyDeleteUser(userId: number): Promise<boolean> {
     try {
-      // First check if the user exists
-      const user = await this.getUser(id);
-      if (!user) return false;
+      // First delete all attendance records for this user
+      await this.db.delete(attendance)
+        .where(eq(attendance.userId, userId));
 
-      // Permanently delete the user
-      await this.db.delete(users)
-        .where(eq(users.id, id));
-      
-      return true;
+      // Then delete the user
+      const result = await this.db.delete(users)
+        .where(eq(users.id, userId))
+        .returning();
+      return result.length > 0;
     } catch (error) {
       console.error('Error in permanentlyDeleteUser:', error);
       throw error;

@@ -58,15 +58,15 @@ type FormValues = z.infer<typeof formSchema>;
 export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
+  
   const { data: employeesData } = useQuery({
     queryKey: ["/api/users"],
   });
-
+  
   const { data: enumsData } = useQuery({
     queryKey: ["/api/enums"],
   });
-
+  
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -77,7 +77,7 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
       reason: "",
     },
   });
-
+  
   const createLeaveMutation = useMutation({
     mutationFn: async (data: any) => {
       return await apiRequest("POST", "/api/leave-requests", data);
@@ -101,20 +101,20 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
       });
     }
   });
-
+  
   const onSubmit = (values: FormValues) => {
     // Convert string values to appropriate types
     const payload = {
       userId: parseInt(values.employeeId),
-      startDate: values.startDate,
-      endDate: values.endDate,
+      startDate: new Date(values.startDate),
+      endDate: new Date(values.endDate),
       type: values.type,
       reason: values.reason,
     };
-
+    
     createLeaveMutation.mutate(payload);
   };
-
+  
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
@@ -124,7 +124,7 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
             Submit a new leave request
           </DialogDescription>
         </DialogHeader>
-
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -143,7 +143,7 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
                 </FormItem>
               )}
             />
-
+            
             <FormField
               control={form.control}
               name="type"
@@ -179,7 +179,7 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
                 </FormItem>
               )}
             />
-
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -194,7 +194,7 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
                   </FormItem>
                 )}
               />
-
+              
               <FormField
                 control={form.control}
                 name="endDate"
@@ -209,7 +209,7 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
                 )}
               />
             </div>
-
+            
             <FormField
               control={form.control}
               name="reason"
@@ -227,7 +227,7 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
                 </FormItem>
               )}
             />
-
+            
             <DialogFooter>
               <Button 
                 type="button" 

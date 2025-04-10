@@ -90,10 +90,15 @@ export default function QuickAttendance() {
               <QRCodeScanner onScan={(result) => {
                 try {
                   const qrData = JSON.parse(result);
-                  if (qrData.userId && user) {
+                  if (qrData.id) {
                     markAttendanceMutation.mutate({ 
-                      userId: qrData.userId, 
+                      userId: parseInt(qrData.id.replace('EMP', '')), 
                       checkInMethod: 'qr_code' 
+                    },
+                    {
+                      onSuccess: () => {
+                        setIsScanning(false);
+                      }
                     });
                   }
                 } catch (error) {
@@ -103,6 +108,7 @@ export default function QuickAttendance() {
                     title: "Invalid QR code",
                     description: "The QR code format is not recognized."
                   });
+                  setIsScanning(false);
                 }
               }} />
             ) : (

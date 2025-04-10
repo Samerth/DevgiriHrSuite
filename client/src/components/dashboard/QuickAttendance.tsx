@@ -26,7 +26,10 @@ export default function QuickAttendance() {
       return res.json();
     },
     onSuccess: () => {
+      // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/statistics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
       toast({
         title: "Attendance marked!",
         description: "Your attendance has been successfully recorded.",

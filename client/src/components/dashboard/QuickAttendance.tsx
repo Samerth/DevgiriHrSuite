@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import QRCodeScanner from "@/components/common/QRCodeScanner";
 
 export default function QuickAttendance() {
   const { user } = useAuth();
@@ -86,10 +87,24 @@ export default function QuickAttendance() {
             className={`w-32 h-32 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mb-4 bg-gray-50 ${isScanning ? 'animate-pulse' : ''}`}
           >
             {isScanning ? (
-              <div className="flex flex-col items-center">
-                <QrCode className="h-12 w-12 text-primary animate-ping" />
-                <span className="text-xs mt-2 text-neutral-500">Scanning...</span>
-              </div>
+              <QRCodeScanner onScan={(result) => {
+                try {
+                  const qrData = JSON.parse(result);
+                  if (qrData.userId && user) {
+                    markAttendanceMutation.mutate({ 
+                      userId: qrData.userId, 
+                      checkInMethod: 'qr_code' 
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error parsing QR code:', error);
+                  toast({
+                    variant: "destructive",
+                    title: "Invalid QR code",
+                    description: "The QR code format is not recognized."
+                  });
+                }
+              }} />
             ) : (
               <QrCode className="h-12 w-12 text-neutral-400" />
             )}

@@ -103,11 +103,14 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
   });
   
   const onSubmit = (values: FormValues) => {
-    // Convert string values to appropriate types
+    // Convert string values to appropriate types and format dates
+    const startDate = new Date(values.startDate);
+    const endDate = new Date(values.endDate);
+    
     const payload = {
       userId: parseInt(values.employeeId),
-      startDate: new Date(values.startDate),
-      endDate: new Date(values.endDate),
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
       type: values.type,
       reason: values.reason,
     };

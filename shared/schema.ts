@@ -77,6 +77,8 @@ export const users = pgTable("users", {
   joinDate: date("join_date"),
   address: text("address"),
   profileImageUrl: text("profile_image_url"),
+  salary: text("salary"),
+  fatherName: text("father_name"),
   isActive: boolean("is_active").default(true),
 });
 

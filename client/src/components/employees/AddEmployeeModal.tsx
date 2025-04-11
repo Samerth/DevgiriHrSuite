@@ -64,6 +64,8 @@ const formSchema = z.object({
   joinDate: z.string(),
   address: z.string().optional(),
   profileImageUrl: z.string().optional(),
+  salary: z.string().optional(),
+  fatherName: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -352,6 +354,45 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
                 </FormItem>
               )}
             />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="salary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Salary</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Enter salary"
+                        {...field}
+                        value={getFieldValue(form.watch("salary"))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="fatherName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Father's Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter father's name"
+                        {...field}
+                        value={getFieldValue(form.watch("fatherName"))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}

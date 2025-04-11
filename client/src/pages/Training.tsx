@@ -16,16 +16,16 @@ export default function Training() {
         </Button>
       </div>
 
-      {showNewTrainingForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>New Training Record</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TrainingRecord />
-          </CardContent>
-        </Card>
-      )}
+      {showNewTrainingForm && <TrainingRecord />}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Training Records</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No training records found.</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

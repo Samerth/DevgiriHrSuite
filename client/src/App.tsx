@@ -11,6 +11,7 @@ import Attendance from "@/pages/Attendance";
 import Leaves from "@/pages/Leaves";
 import LeaveManagement from "@/pages/LeaveManagement";
 import NotFound from "@/pages/not-found";
+import Training from "@/pages/Training";
 
 // Layout component
 const Layout = ({ children }: { children: React.ReactNode }) => {

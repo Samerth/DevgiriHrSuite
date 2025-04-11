@@ -599,6 +599,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Training record routes
+  app.post("/api/training-records", requireAuth, async (req, res) => {
+    try {
+      const { userId, trainingTitle, trainingType, startDate, endDate, department, trainerId, attendees, venue, objectives, materials, evaluation, effectiveness, notes } = req.body;
+
+      const trainingRecord = await storage.createTrainingRecord({
+        userId,
+        trainingTitle,
+        trainingType,
+        startDate,
+        endDate,
+        trainerId,
+        department,
+        status: 'pending',
+        notes
+      });
+
+      res.status(201).json(trainingRecord);
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   // Dashboard stats
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {

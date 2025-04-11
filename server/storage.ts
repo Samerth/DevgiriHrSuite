@@ -73,6 +73,9 @@ export interface IStorage {
     approvedById: number,
     notes?: string,
   ): Promise<LeaveRequest | undefined>;
+
+  //Training Records
+  createTrainingRecord(data: any): Promise<any>;
 }
 
 // In-Memory Storage implementation
@@ -182,7 +185,7 @@ export class MemStorage implements IStorage {
       if (department) {
         return user.isActive && matchesQuery && matchesDepartment;
       }
-      
+
       return matchesQuery && matchesDepartment;
     });
   }
@@ -476,6 +479,11 @@ export class MemStorage implements IStorage {
       recentActivity,
     };
   }
+
+
+  async createTrainingRecord(data: any): Promise<any> {
+    throw new Error("Method not implemented.");
+  }
 }
 
 // Database Storage implementation
@@ -737,8 +745,7 @@ export class DatabaseStorage implements IStorage {
     return await this.db
       .select()
       .from(leaveRequests)
-      .where(eq(leaveRequests.userId, userId))
-      .orderBy(desc(leaveRequests.requestDate));
+      .where(eq(leaveRequests.userId, userId));
   }
 
   async updateLeaveRequest(
@@ -904,6 +911,10 @@ export class DatabaseStorage implements IStorage {
       console.error("Error in permanentlyDeleteUser:", error);
       throw error;
     }
+  }
+
+  async createTrainingRecord(data: any): Promise<any> {
+    return await this.db.insert(trainingRecords).values(data).returning();
   }
 }
 

@@ -63,8 +63,18 @@ export function TrainingRecord() {
         status: 'pending',
       };
 
-      // Submit training record
-      await apiRequest('POST', '/api/training-records', formattedData);
+      // Submit training record with proper data structure
+      const trainingData = {
+        ...formattedData,
+        trainingType: formattedData.trainingType || 'internal',
+        trainerId: formattedData.trainerId || null,
+        department: formattedData.department || 'general',
+        status: 'pending'
+      };
+      
+      console.log('Submitting training data:', trainingData);
+      const response = await apiRequest('POST', '/api/training-records', trainingData);
+      console.log('Training record response:', response);
 
       toast({
         title: "Success",

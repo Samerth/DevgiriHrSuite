@@ -482,7 +482,24 @@ export class MemStorage implements IStorage {
 
 
   async createTrainingRecord(data: any): Promise<any> {
-    throw new Error("Method not implemented.");
+    try {
+      const result = await this.db.insert(trainingRecords).values({
+        userId: data.userId,
+        trainingTitle: data.trainingTitle,
+        trainingType: data.trainingType,
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        trainerId: data.trainerId,
+        department: data.department,
+        status: data.status || 'pending',
+        notes: data.notes
+      }).returning();
+
+      return result[0];
+    } catch (error) {
+      console.error('Error creating training record:', error);
+      throw error;
+    }
   }
 }
 

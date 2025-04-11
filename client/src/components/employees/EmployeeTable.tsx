@@ -126,7 +126,7 @@ export default function EmployeeTable({ employees, onSelect }: EmployeeTableProp
                   {employee.position || "-"}
                 </TableCell>
                 <TableCell onClick={() => onSelect(employee)}>
-                  <Badge variant={employee.isActive ? "default" : "outline"}>
+                  <Badge variant={employee.isActive ? "default" : "secondary"}>
                     {employee.isActive ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>

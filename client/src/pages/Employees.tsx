@@ -182,6 +182,7 @@ export default function Employees() {
       // TODO: Implement on-leave filtering when leave status is available
       filteredUsers = filteredUsers.filter(user => user.isActive);
     }
+    // For 'all' tab, we don't filter by isActive status
     
     return filteredUsers;
   }, [apiUsers, filteredLocalEmployees, isError, usingLocalData, activeTab]);

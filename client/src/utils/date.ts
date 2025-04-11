@@ -1,3 +1,5 @@
+import { format } from 'date-fns';
+
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '';
   
@@ -9,16 +11,9 @@ export function formatDate(date: Date | string | null | undefined): string {
   });
 }
 
-export function formatTime(date: Date | string | null | undefined): string {
-  if (!date) return '-';
-  
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-}
+export const formatTime = (date: Date): string => {
+  return format(date, 'hh:mm a');
+};
 
 export function formatDateRange(startDate: Date | string, endDate: Date | string): string {
   const start = typeof startDate === 'string' ? new Date(startDate) : startDate;

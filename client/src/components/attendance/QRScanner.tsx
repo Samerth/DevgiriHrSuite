@@ -139,11 +139,16 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
 
       if (existingAttendance && !existingAttendance.checkOutTime) {
         const now = new Date();
-        const checkOutTime = now;
+        
+        console.log('Debug - Checkout Data:', {
+          existingAttendance,
+          now: now.toISOString()
+        });
 
+        // Send the Date object directly
         await apiRequest("PUT", `/api/attendance/${existingAttendance.id}`, {
-          checkOutTime: checkOutTime.toISOString(), // <<<<<< IMPORTANT
-          checkOutMethod: "qr_code",
+          checkOutTime: now,  // Send the Date object directly
+          checkOutMethod: "qr_code"
         });
 
         toast({
@@ -151,25 +156,16 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
           description: "Your check-out has been successfully recorded.",
         });
         queryClient.invalidateQueries({ queryKey: ["/api/attendance/today"] });
+        
+        // Stop the scanner and close the dialog after successful checkout
+        stopScanner();
+        onClose();
       } else {
         // New check-in
-        markAttendanceMutation.mutate(
-          {
-            employeeId: scannedEmployeeId,
-            checkInMethod: "qr_code",
-            date: todayDate,
-            checkInTime: now.toTimeString().split(" ")[0],
-            status: "present",
-          },
-          {
-            onSuccess: () => {
-              toast({
-                title: "Check-in recorded!",
-                description: "Your check-in has been successfully recorded.",
-              });
-            },
-          },
-        );
+        markAttendanceMutation.mutate({
+          employeeId: scannedEmployeeId,
+          checkInMethod: "qr_code",
+        });
       }
     } catch (error) {
       console.error("Error parsing QR code:", error);

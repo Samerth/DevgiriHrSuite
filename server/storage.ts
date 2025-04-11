@@ -177,7 +177,13 @@ export class MemStorage implements IStorage {
 
       const matchesDepartment = !department || user.department === department;
 
-      return user.isActive && matchesQuery && matchesDepartment;
+      // Only filter by isActive when a specific department is selected
+      // This allows inactive users to be visible in "All Departments"
+      if (department) {
+        return user.isActive && matchesQuery && matchesDepartment;
+      }
+      
+      return matchesQuery && matchesDepartment;
     });
   }
 
@@ -254,7 +260,7 @@ export class MemStorage implements IStorage {
     id: number,
     attendanceData: Partial<InsertAttendance>,
   ): Promise<Attendance | undefined> {
-    const formattedData: Partial<InsertAttendance> = {
+    const formattedData = {
       ...attendanceData,
       date: attendanceData.date
         ? attendanceData.date instanceof Date
@@ -278,7 +284,6 @@ export class MemStorage implements IStorage {
       .set(formattedData)
       .where(eq(attendance.id, id))
       .returning();
-
     return result[0];
   }
 
@@ -560,8 +565,13 @@ export class DatabaseStorage implements IStorage {
   async searchUsers(query: string, department?: string): Promise<User[]> {
     let queryBuilder = this.db
       .select()
-      .from(users)
-      .where(eq(users.isActive, true));
+      .from(users);
+
+    // Only filter by isActive when a specific department is selected
+    // This allows inactive users to be visible in "All Departments"
+    if (department) {
+      queryBuilder = queryBuilder.where(eq(users.isActive, true));
+    }
 
     if (query) {
       queryBuilder = queryBuilder.where(
@@ -611,11 +621,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserAttendance(userId: number): Promise<Attendance[]> {
-    return await this.db
-      .select()
-      .from(attendance)
-      .where(eq(attendance.userId, userId))
-      .orderBy(desc(attendance.date));
+    return Array.from(this.attendance.values())
+      .filter((att) => att.userId === userId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
   async getUserAttendanceByDate(
@@ -644,16 +652,15 @@ export class DatabaseStorage implements IStorage {
     startDate: Date,
     endDate: Date,
   ): Promise<Attendance[]> {
-    return await this.db
-      .select()
-      .from(attendance)
-      .where(
-        and(
-          eq(attendance.userId, userId),
-          between(attendance.date, startDate, endDate),
-        ),
-      )
-      .orderBy(desc(attendance.date));
+    const start = startDate.getTime();
+    const end = endDate.getTime();
+
+    return Array.from(this.attendance.values())
+      .filter((att) => {
+        const attDate = new Date(att.date).getTime();
+        return att.userId === userId && attDate >= start && attDate <= end;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
   async updateAttendance(
@@ -661,15 +668,24 @@ export class DatabaseStorage implements IStorage {
     attendanceData: Partial<InsertAttendance>,
   ): Promise<Attendance | undefined> {
     // Ensure date is properly formatted if it exists
-    const formattedData = attendanceData.date
-      ? {
-          ...attendanceData,
-          date:
-            attendanceData.date instanceof Date
-              ? attendanceData.date
-              : new Date(attendanceData.date),
-        }
-      : attendanceData;
+    const formattedData = {
+      ...attendanceData,
+      date: attendanceData.date
+        ? attendanceData.date instanceof Date
+          ? attendanceData.date
+          : new Date(attendanceData.date)
+        : undefined,
+      checkInTime: attendanceData.checkInTime
+        ? attendanceData.checkInTime instanceof Date
+          ? attendanceData.checkInTime
+          : new Date(attendanceData.checkInTime)
+        : undefined,
+      checkOutTime: attendanceData.checkOutTime
+        ? attendanceData.checkOutTime instanceof Date
+          ? attendanceData.checkOutTime
+          : new Date(attendanceData.checkOutTime)
+        : undefined,
+    };
 
     const result = await this.db
       .update(attendance)

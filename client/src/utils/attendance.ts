@@ -1,41 +1,23 @@
 import { Attendance } from "@shared/schema";
 
-export function getAttendanceStatusLabel(status: string): string {
-  switch (status) {
-    case 'present':
-      return 'Present';
-    case 'absent':
-      return 'Absent';
-    case 'late':
-      return 'Late';
-    case 'half_day':
-      return 'Half Day';
-    case 'leave':
-      return 'On Leave';
-    default:
-      return status;
-  }
-}
+export const getAttendanceStatusLabel = (status: string) => {
+  if (status === 'on_leave') return 'On Leave';
+  return status.split('_').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
+};
 
-export function getAttendanceStatusColor(status: string): {
-  bg: string;
-  text: string;
-} {
-  switch (status) {
-    case 'present':
-      return { bg: 'bg-green-100', text: 'text-green-800' };
-    case 'absent':
-      return { bg: 'bg-red-100', text: 'text-red-800' };
-    case 'late':
-      return { bg: 'bg-yellow-100', text: 'text-yellow-800' };
-    case 'half_day':
-      return { bg: 'bg-orange-100', text: 'text-orange-800' };
-    case 'leave':
-      return { bg: 'bg-purple-100', text: 'text-purple-800' };
-    default:
-      return { bg: 'bg-gray-100', text: 'text-gray-800' };
-  }
-}
+export const getAttendanceStatusColor = (status: string) => {
+  const colorMap: Record<string, { bg: string; text: string }> = {
+    present: { bg: 'bg-green-100', text: 'text-green-800' },
+    absent: { bg: 'bg-red-100', text: 'text-red-800' },
+    late: { bg: 'bg-yellow-100', text: 'text-yellow-800' },
+    on_leave: { bg: 'bg-purple-100', text: 'text-purple-800' },
+    half_day: { bg: 'bg-blue-100', text: 'text-blue-800' },
+  };
+
+  return colorMap[status] || { bg: 'bg-gray-100', text: 'text-gray-800' };
+};
 
 export function calculateAttendanceSummary(attendances: Attendance[]) {
   const totalDays = attendances.length;

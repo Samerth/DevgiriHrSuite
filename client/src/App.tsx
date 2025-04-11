@@ -11,7 +11,7 @@ import Attendance from "@/pages/Attendance";
 import Leaves from "@/pages/Leaves";
 import LeaveManagement from "@/pages/LeaveManagement";
 import NotFound from "@/pages/not-found";
-import Training from "@/pages/Training";
+import { default as Training } from "@/pages/Training";
 
 // Layout component
 const Layout = ({ children }: { children: React.ReactNode }) => {
@@ -56,6 +56,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             >
               <span className="mr-3">📅</span>
               Leave Management
+            </a>
+            <a 
+              href="/training" 
+              className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${location === '/training' ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <span className="mr-3">📚</span>
+              Training
             </a>
           </nav>
         </div>

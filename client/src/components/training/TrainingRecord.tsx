@@ -170,7 +170,9 @@ export function TrainingRecord() {
                 <FormItem>
                   <FormLabel>Attendees</FormLabel>
                   <FormControl>
-                    <EmployeeCombobox {...field} /> {/* Added EmployeeCombobox */}
+                    <div>
+                      <EmployeeCombobox {...field} />
+                    </div>
                   </FormControl>
                 </FormItem>
               )}

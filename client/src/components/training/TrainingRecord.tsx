@@ -49,27 +49,35 @@ export function TrainingRecord() {
     resolver: zodResolver(trainingFormSchema),
   });
 
+  const { authState } = useAuth();
+  const user = authState.user;
+
   const onSubmit = async (data: z.infer<typeof trainingFormSchema>) => {
     try {
-      // Submit training record using apiRequest helper
-      await apiRequest('POST', '/api/training-records', {
+      // Format dates
+      const formattedData = {
         ...data,
-        userId: user?.id, // Add current user ID
+        userId: user?.id,
+        startDate: new Date(data.startDate).toISOString(),
+        endDate: new Date(data.endDate).toISOString(),
         status: 'pending',
-      });
+      };
+
+      // Submit training record
+      await apiRequest('POST', '/api/training-records', formattedData);
 
       toast({
-        title: "Training record created",
-        description: "The training record has been successfully saved.",
+        title: "Success",
+        description: "Training record has been saved.",
       });
       
-      // Reset form after successful submission
       form.reset();
     } catch (error) {
+      console.error('Training record error:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: (error as Error).message || "Failed to create training record",
+        description: (error as Error).message || "Failed to save training record",
       });
     }
   };

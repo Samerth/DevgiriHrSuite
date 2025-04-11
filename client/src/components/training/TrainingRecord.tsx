@@ -171,7 +171,10 @@ export function TrainingRecord() {
                   <FormLabel>Attendees</FormLabel>
                   <FormControl>
                     <div>
-                      <EmployeeCombobox {...field} />
+                      <EmployeeCombobox 
+                        value={field.value} 
+                        onValueChange={field.onChange}
+                      />
                     </div>
                   </FormControl>
                 </FormItem>

@@ -16,7 +16,7 @@ import Training from "@/pages/Training";
 // Layout component
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const [location] = useLocation();
-  
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       {/* Sidebar */}

@@ -10,6 +10,7 @@ import Employees from "@/pages/Employees";
 import Attendance from "@/pages/Attendance";
 import Leaves from "@/pages/Leaves";
 import LeaveManagement from "@/pages/LeaveManagement";
+import Training from "@/pages/Training";
 import NotFound from "@/pages/not-found";
 import Training from "@/pages/Training";
 

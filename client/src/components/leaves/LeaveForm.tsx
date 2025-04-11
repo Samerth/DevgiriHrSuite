@@ -103,11 +103,11 @@ export default function LeaveForm({ isOpen, onClose }: LeaveFormProps) {
   });
   
   const onSubmit = (values: FormValues) => {
-    // Convert string values to appropriate types
+    // Convert string values to appropriate types and ensure valid dates
     const payload = {
       userId: parseInt(values.employeeId),
-      startDate: new Date(values.startDate),
-      endDate: new Date(values.endDate),
+      startDate: new Date(values.startDate).toISOString(),
+      endDate: new Date(values.endDate).toISOString(),
       type: values.type,
       reason: values.reason,
     };

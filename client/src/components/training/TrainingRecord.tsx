@@ -70,7 +70,7 @@ export function TrainingRecord() {
         title: "Success",
         description: "Training record has been saved.",
       });
-      
+
       form.reset();
     } catch (error) {
       console.error('Training record error:', error);
@@ -177,12 +177,10 @@ export function TrainingRecord() {
                 <FormItem>
                   <FormLabel>Attendees</FormLabel>
                   <FormControl>
-                    <div>
-                      <EmployeeCombobox 
-                        value={field.value} 
-                        onValueChange={field.onChange}
-                      />
-                    </div>
+                    <EmployeeCombobox 
+                      value={field.value || []}
+                      onValueChange={(value) => field.onChange(value || [])}
+                    />
                   </FormControl>
                 </FormItem>
               )}

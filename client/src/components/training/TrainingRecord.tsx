@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
 import {
   Card,
   CardContent,
@@ -49,28 +51,25 @@ export function TrainingRecord() {
 
   const onSubmit = async (data: z.infer<typeof trainingFormSchema>) => {
     try {
-      // Submit training record
-      const response = await fetch('/api/training', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
+      // Submit training record using apiRequest helper
+      await apiRequest('POST', '/api/training-records', {
+        ...data,
+        userId: user?.id, // Add current user ID
+        status: 'pending',
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create training record');
-      }
 
       toast({
         title: "Training record created",
         description: "The training record has been successfully saved.",
       });
+      
+      // Reset form after successful submission
+      form.reset();
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create training record",
+        description: (error as Error).message || "Failed to create training record",
       });
     }
   };

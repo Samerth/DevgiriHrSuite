@@ -13,8 +13,11 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -27,6 +30,14 @@ const trainingFormSchema = z.object({
   endDate: z.string(),
   department: z.string(),
   trainerId: z.string(),
+  duration: z.string(),
+  attendees: z.string(),
+  venue: z.string(),
+  objectives: z.string(),
+  materials: z.string(),
+  evaluation: z.string(),
+  feedback: z.string(),
+  effectiveness: z.string(),
   notes: z.string().optional(),
 });
 
@@ -39,6 +50,18 @@ export function TrainingRecord() {
   const onSubmit = async (data: z.infer<typeof trainingFormSchema>) => {
     try {
       // Submit training record
+      const response = await fetch('/api/training', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create training record');
+      }
+
       toast({
         title: "Training record created",
         description: "The training record has been successfully saved.",
@@ -67,7 +90,7 @@ export function TrainingRecord() {
                 <FormItem>
                   <FormLabel>Training Title</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} placeholder="Enter training title" />
                   </FormControl>
                 </FormItem>
               )}
@@ -108,13 +131,137 @@ export function TrainingRecord() {
                 <FormItem>
                   <FormLabel>Department</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} placeholder="Enter department" />
                   </FormControl>
                 </FormItem>
               )}
             />
 
-            <Button type="submit">Save Training Record</Button>
+            <FormField
+              control={form.control}
+              name="trainerId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Trainer</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Enter trainer name" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="duration"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Duration</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Enter duration (e.g., 2 hours)" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="venue"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Venue</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Enter training venue" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="objectives"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Training Objectives</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} placeholder="Enter training objectives" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="materials"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Training Materials</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} placeholder="List training materials used" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="evaluation"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Evaluation Method</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select evaluation method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="written">Written Test</SelectItem>
+                        <SelectItem value="practical">Practical Assessment</SelectItem>
+                        <SelectItem value="observation">Observation</SelectItem>
+                        <SelectItem value="feedback">Feedback Form</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="effectiveness"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Training Effectiveness</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select effectiveness level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="highly_effective">Highly Effective</SelectItem>
+                        <SelectItem value="effective">Effective</SelectItem>
+                        <SelectItem value="moderate">Moderately Effective</SelectItem>
+                        <SelectItem value="needs_improvement">Needs Improvement</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Additional Notes</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} placeholder="Enter any additional notes" />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit" className="w-full">Save Training Record</Button>
           </form>
         </Form>
       </CardContent>

@@ -1,0 +1,29 @@
+Warning: A component is changing an uncontrolled input to be controlled. This is likely caused by the value changing from undefined to a defined value, which should not happen. Decide between using a controlled or uncontrolled input element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components
+    at input
+    at _c (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/src/components/ui/input.tsx:20:11)
+    at https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-DKHUMOWT.js?v=2fab7e29:52:11
+    at https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-DKHUMOWT.js?v=2fab7e29:33:11
+    at https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/src/components/ui/form.tsx:129:9
+    at div
+    at https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/src/components/ui/form.tsx:71:6
+    at Controller (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-YABUFNLM.js?v=2fab7e29:313:35)
+    at FormField (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/src/components/ui/form.tsx:32:6)
+    at form
+    at FormProvider (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-YABUFNLM.js?v=2fab7e29:102:11)
+    at div
+    at _c9 (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/src/components/ui/card.tsx:114:12)
+    at div
+    at _c (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/src/components/ui/card.tsx:20:11)
+    at TrainingRecord (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/src/components/training/TrainingRecord.tsx:61:21)
+    at div
+    at Training (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/src/pages/Training.tsx:24:57)
+    at Route (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=2fab7e29:191:16)
+    at Switch (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=2fab7e29:247:17)
+    at div
+    at div
+    at main
+    at div
+    at div
+    at Layout (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/src/App.tsx?v=nn42bJFaYZ3qkTFSIrWH7:30:19)
+    at QueryClientProvider (https://1de9ea4f-38d7-4420-a41e-2ae4a4e1dbd2-00-2c20z22h0q05n.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=2fab7e29:2805:3)
+    at App

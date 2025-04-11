@@ -112,7 +112,6 @@ function App() {
           <Route path="/attendance" component={Attendance} />
           <Route path="/leaves" component={Leaves} />
           <Route path="/leave-management" component={LeaveManagement} />
-          <Route path="/training" component={Training} />
           <Route component={NotFound} />
         </Switch>
       </Layout>

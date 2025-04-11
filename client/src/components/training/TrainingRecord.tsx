@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Card,
@@ -22,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { EmployeeCombobox } from "@/components/common/EmployeeCombobox"; // Added import
 
 const trainingFormSchema = z.object({
   trainingTitle: z.string().min(1, "Training title is required"),
@@ -31,7 +31,7 @@ const trainingFormSchema = z.object({
   department: z.string(),
   trainerId: z.string(),
   duration: z.string(),
-  attendees: z.string(),
+  attendees: z.array(z.string()), // Changed to array of strings
   venue: z.string(),
   objectives: z.string(),
   materials: z.string(),
@@ -95,7 +95,7 @@ export function TrainingRecord() {
                 </FormItem>
               )}
             />
-            
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -109,7 +109,7 @@ export function TrainingRecord() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="endDate"
@@ -162,6 +162,20 @@ export function TrainingRecord() {
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="attendees"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Attendees</FormLabel>
+                  <FormControl>
+                    <EmployeeCombobox {...field} /> {/* Added EmployeeCombobox */}
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
 
             <FormField
               control={form.control}

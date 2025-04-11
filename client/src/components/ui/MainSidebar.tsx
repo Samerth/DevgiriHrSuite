@@ -56,6 +56,7 @@ export default function MainSidebar() {
     { href: '/employees', icon: Users, label: 'Employees' },
     { href: '/attendance', icon: Clock, label: 'Attendance' },
     { href: '/leaves', icon: CalendarX, label: 'Leave Management' },
+    { href: '/training', icon: BarChart3, label: 'Training' },
     { href: '/reports', icon: BarChart3, label: 'Reports' },
     { href: '/settings', icon: Settings, label: 'Settings' },
   ];

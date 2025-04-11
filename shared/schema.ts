@@ -93,6 +93,52 @@ export const attendance = pgTable("attendance", {
   notes: text("notes"),
 });
 
+// Training Record Table
+export const trainingRecords = pgTable("training_records", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  trainingTitle: text("training_title").notNull(),
+  trainingType: text("training_type").notNull(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  trainerId: integer("trainer_id").references(() => users.id),
+  department: text("department"),
+  feedbackScore: integer("feedback_score"),
+  status: text("status").default('pending'),
+  assessmentScore: integer("assessment_score"),
+  effectiveness: text("effectiveness"),
+  notes: text("notes"),
+});
+
+// Training Feedback Table
+export const trainingFeedback = pgTable("training_feedback", {
+  id: serial("id").primaryKey(),
+  trainingId: integer("training_id").notNull().references(() => trainingRecords.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  isEffective: boolean("is_effective"),
+  trainingAidsGood: boolean("training_aids_good"),
+  durationSufficient: boolean("duration_sufficient"),
+  contentExplained: boolean("content_explained"),
+  conductedProperly: boolean("conducted_properly"),
+  learningEnvironment: boolean("learning_environment"),
+  helpfulForWork: boolean("helpful_for_work"),
+  additionalTopics: text("additional_topics"),
+  keyLearnings: text("key_learnings"),
+  specialObservations: text("special_observations"),
+});
+
+// Training Assessment Table
+export const trainingAssessments = pgTable("training_assessments", {
+  id: serial("id").primaryKey(),
+  trainingId: integer("training_id").notNull().references(() => trainingRecords.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  assessorId: integer("assessor_id").notNull().references(() => users.id),
+  assessmentDate: date("assessment_date").notNull(),
+  totalScore: integer("total_score"),
+  status: text("status"),
+  comments: text("comments"),
+});
+
 // Leave Request Table
 export const leaveRequests = pgTable("leave_requests", {
   id: serial("id").primaryKey(),

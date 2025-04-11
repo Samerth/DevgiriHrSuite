@@ -486,13 +486,15 @@ export class MemStorage implements IStorage {
       const result = await this.db.insert(trainingRecords).values({
         userId: data.userId,
         trainingTitle: data.trainingTitle,
-        trainingType: data.trainingType,
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
+        trainingType: data.trainingType || 'internal',
+        date: new Date(data.date),
         trainerId: data.trainerId,
         department: data.department,
-        status: data.status || 'pending',
-        notes: data.notes
+        status: 'pending',
+        effectiveness: data.effectiveness,
+        notes: data.notes,
+        feedbackScore: null,
+        assessmentScore: null
       }).returning();
 
       return result[0];

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrainingRecord } from "@/components/training/TrainingRecord";
 import { apiRequest } from "@/lib/queryClient";
@@ -24,6 +25,7 @@ interface TrainingRecord {
 }
 
 export default function Training() {
+  const { toast } = useToast();
   const [showNewTrainingForm, setShowNewTrainingForm] = useState(false);
   const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -141,13 +141,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // User/Employee routes
+  // Users routes
   app.get("/api/users", requireAuth, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
     }
   });
 
@@ -599,25 +600,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Training record routes
+  // Training Records routes
+  app.get("/api/training-records", requireAuth, async (req, res) => {
+    try {
+      // Set header explicitly to ensure JSON response
+      res.setHeader('Content-Type', 'application/json');
+      
+      const records = await storage.getAllTrainingRecords();
+      res.json(records);
+    } catch (error) {
+      console.error('Error fetching training records:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   app.post("/api/training-records", requireAuth, async (req, res) => {
     try {
-      const { userId, trainingTitle, trainingType, startDate, endDate, department, trainerId, attendees, venue, objectives, materials, evaluation, effectiveness, notes } = req.body;
-
-      const trainingRecord = await storage.createTrainingRecord({
-        userId,
-        trainingTitle,
-        trainingType,
-        startDate,
-        endDate,
-        trainerId,
-        department,
-        status: 'pending',
-        notes
+      console.log('Received training record data:', req.body);
+      
+      // Set header explicitly to ensure JSON response
+      res.setHeader('Content-Type', 'application/json');
+      
+      const schema = z.object({
+        userId: z.number(),
+        trainingTitle: z.string(),
+        trainingType: z.string(),
+        date: z.string(),
+        department: z.string().optional(),
+        trainerId: z.number().nullable(),
+        notes: z.string().optional()
       });
 
+      const validatedData = schema.parse(req.body);
+      console.log('Validated data:', validatedData);
+
+      const trainingRecord = await storage.createTrainingRecord(validatedData);
       res.status(201).json(trainingRecord);
     } catch (error) {
+      console.error('Error creating training record:', error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
       res.status(500).json({ error: (error as Error).message });
     }
   });

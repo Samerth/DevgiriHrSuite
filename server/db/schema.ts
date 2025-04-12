@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean, integer, date } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -39,4 +39,19 @@ export const leaveRequests = pgTable("leave_requests", {
   requestDate: timestamp("request_date").notNull().defaultNow(),
   responseDate: timestamp("response_date"),
   responseNotes: text("response_notes"),
+});
+
+export const trainingRecords = pgTable("training_records", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  trainingTitle: text("training_title").notNull(),
+  trainingType: text("training_type").notNull(),
+  date: date("date").notNull(),
+  trainerId: integer("trainer_id").references(() => users.id),
+  department: text("department"),
+  feedbackScore: integer("feedback_score"),
+  status: text("status").default('pending'),
+  assessmentScore: integer("assessment_score"),
+  effectiveness: text("effectiveness"),
+  notes: text("notes"),
 }); 

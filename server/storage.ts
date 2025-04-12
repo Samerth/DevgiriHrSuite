@@ -1,13 +1,16 @@
 import { eq, and, desc, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { users, attendance, leaveRequests } from "./db/schema";
-import type {
-  User,
-  InsertUser,
-  LeaveRequest,
-  InsertLeaveRequest,
-} from "../shared/schema";
-import { attendanceStatusEnum, leaveStatusEnum } from "@shared/schema";
+import { users, attendance, leaveRequests, trainingRecords } from "./db/schema";
+import { 
+  type User,
+  type InsertUser,
+  type LeaveRequest,
+  type InsertLeaveRequest,
+  type Attendance,
+  type InsertAttendance,
+  attendanceStatusEnum,
+  leaveStatusEnum
+} from "@shared/schema";
 import { between, gte, lte, like, or, isNull, asc } from "drizzle-orm";
 import { db } from "./db";
 import { type Database } from "drizzle-orm";
@@ -76,6 +79,7 @@ export interface IStorage {
 
   //Training Records
   createTrainingRecord(data: any): Promise<any>;
+  getAllTrainingRecords(): Promise<any[]>;
 }
 
 // In-Memory Storage implementation
@@ -83,17 +87,21 @@ export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private attendance: Map<number, Attendance>;
   private leaveRequests: Map<number, LeaveRequest>;
+  private trainingRecords: Map<number, any>;
   private currentUserId: number;
   private currentAttendanceId: number;
   private currentLeaveRequestId: number;
+  private currentTrainingRecordId: number;
 
   constructor() {
     this.users = new Map();
     this.attendance = new Map();
     this.leaveRequests = new Map();
+    this.trainingRecords = new Map();
     this.currentUserId = 1;
     this.currentAttendanceId = 1;
     this.currentLeaveRequestId = 1;
+    this.currentTrainingRecordId = 1;
 
     // Add some initial admin user
     this.createUser({
@@ -480,28 +488,20 @@ export class MemStorage implements IStorage {
     };
   }
 
-
+  // Training Records Methods
   async createTrainingRecord(data: any): Promise<any> {
-    try {
-      const result = await this.db.insert(trainingRecords).values({
-        userId: data.userId,
-        trainingTitle: data.trainingTitle,
-        trainingType: data.trainingType || 'internal',
-        date: new Date(data.date),
-        trainerId: data.trainerId,
-        department: data.department,
-        status: 'pending',
-        effectiveness: data.effectiveness,
-        notes: data.notes,
-        feedbackScore: null,
-        assessmentScore: null
-      }).returning();
+    const id = this.currentTrainingRecordId++;
+    const trainingRecord = {
+      id,
+      ...data,
+      date: data.date,
+    };
+    this.trainingRecords.set(id, trainingRecord);
+    return trainingRecord;
+  }
 
-      return result[0];
-    } catch (error) {
-      console.error('Error creating training record:', error);
-      throw error;
-    }
+  async getAllTrainingRecords(): Promise<any[]> {
+    return Array.from(this.trainingRecords.values());
   }
 }
 
@@ -933,7 +933,57 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTrainingRecord(data: any): Promise<any> {
-    return await this.db.insert(trainingRecords).values(data).returning();
+    try {
+      console.log('Creating training record with data:', data);
+      
+      // First check if the user exists
+      const user = await this.db.select().from(users).where(eq(users.id, data.userId)).limit(1);
+      console.log('Found user:', user);
+      
+      if (!user || user.length === 0) {
+        throw new Error(`User with ID ${data.userId} not found`);
+      }
+
+      // If trainerId is provided, check if trainer exists
+      if (data.trainerId) {
+        const trainer = await this.db.select().from(users).where(eq(users.id, data.trainerId)).limit(1);
+        console.log('Found trainer:', trainer);
+        
+        if (!trainer || trainer.length === 0) {
+          throw new Error(`Trainer with ID ${data.trainerId} not found`);
+        }
+      }
+
+      const result = await this.db.insert(trainingRecords).values({
+        userId: data.userId,
+        trainingTitle: data.trainingTitle,
+        trainingType: data.trainingType || 'internal',
+        date: data.date,
+        trainerId: data.trainerId ? parseInt(data.trainerId) : null,
+        department: data.department,
+        status: 'pending',
+        notes: data.notes || null,
+        feedbackScore: null,
+        assessmentScore: null,
+        effectiveness: null
+      }).returning();
+
+      console.log('Created training record:', result[0]);
+      return result[0];
+    } catch (error) {
+      console.error('Error in createTrainingRecord:', error);
+      throw error;
+    }
+  }
+
+  async getAllTrainingRecords(): Promise<any[]> {
+    try {
+      const records = await this.db.select().from(trainingRecords);
+      return records;
+    } catch (error) {
+      console.error('Error in getAllTrainingRecords:', error);
+      throw error;
+    }
   }
 }
 

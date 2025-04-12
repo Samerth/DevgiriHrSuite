@@ -1,12 +1,10 @@
-
 -- Create training tables
 CREATE TABLE IF NOT EXISTS training_records (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id),
   training_title TEXT NOT NULL,
   training_type TEXT NOT NULL,
-  start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
+  date DATE NOT NULL,
   trainer_id INTEGER REFERENCES users(id),
   department TEXT,
   feedback_score INTEGER,

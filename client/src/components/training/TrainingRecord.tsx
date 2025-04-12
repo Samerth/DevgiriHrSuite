@@ -28,25 +28,38 @@ import { EmployeeCombobox } from "@/components/common/EmployeeCombobox"; // Adde
 const trainingFormSchema = z.object({
   trainingTitle: z.string().min(1, "Training title is required"),
   trainingType: z.string().min(1, "Training type is required"),
-  startDate: z.string(),
-  endDate: z.string(),
-  department: z.string(),
-  trainerId: z.string(),
-  duration: z.string(),
-  attendees: z.array(z.string()), // Changed to array of strings
-  venue: z.string(),
-  objectives: z.string(),
-  materials: z.string(),
-  evaluation: z.string(),
-  feedback: z.string(),
-  effectiveness: z.string(),
+  date: z.string().min(1, "Date is required"),
+  department: z.string().min(1, "Department is required"),
+  trainerId: z.string().nullable(),
+  venue: z.string().min(1, "Venue is required"),
+  objectives: z.string().min(1, "Objectives are required"),
+  materials: z.string().min(1, "Materials are required"),
+  evaluation: z.string().min(1, "Evaluation method is required"),
+  effectiveness: z.string().min(1, "Effectiveness is required"),
   notes: z.string().optional(),
 });
 
-export function TrainingRecord() {
+interface TrainingRecordProps {
+  onSuccess?: () => void;
+}
+
+export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof trainingFormSchema>>({
     resolver: zodResolver(trainingFormSchema),
+    defaultValues: {
+      trainingTitle: '',
+      trainingType: 'internal',
+      date: '',
+      department: '',
+      trainerId: null,
+      venue: '',
+      objectives: '',
+      materials: '',
+      evaluation: '',
+      effectiveness: '',
+      notes: ''
+    }
   });
 
   const { authState } = useAuth();
@@ -54,26 +67,16 @@ export function TrainingRecord() {
 
   const onSubmit = async (data: z.infer<typeof trainingFormSchema>) => {
     try {
-      // Format dates
+      // Format date and handle trainerId
       const formattedData = {
         ...data,
-        userId: user?.id,
-        startDate: new Date(data.startDate).toISOString(),
-        endDate: new Date(data.endDate).toISOString(),
-        status: 'pending',
+        userId: data.trainerId ? parseInt(data.trainerId) : null,
+        date: new Date(data.date).toISOString(),
+        trainerId: data.trainerId ? parseInt(data.trainerId) : null
       };
 
-      // Submit training record with proper data structure
-      const trainingData = {
-        ...formattedData,
-        trainingType: formattedData.trainingType || 'internal',
-        trainerId: formattedData.trainerId || null,
-        department: formattedData.department || 'general',
-        status: 'pending'
-      };
-      
-      console.log('Submitting training data:', trainingData);
-      const response = await apiRequest('POST', '/api/training-records', trainingData);
+      console.log('Submitting training data:', formattedData);
+      const response = await apiRequest('POST', '/api/training-records', formattedData);
       console.log('Training record response:', response);
 
       toast({
@@ -82,6 +85,7 @@ export function TrainingRecord() {
       });
 
       form.reset();
+      onSuccess?.();
     } catch (error) {
       console.error('Training record error:', error);
       toast({
@@ -113,33 +117,40 @@ export function TrainingRecord() {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name="trainingType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Training Type</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select training type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="internal">Internal</SelectItem>
+                        <SelectItem value="external">External</SelectItem>
+                        <SelectItem value="online">Online</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Date</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -161,41 +172,14 @@ export function TrainingRecord() {
                 <FormItem>
                   <FormLabel>Trainer</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Enter trainer name" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="duration"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Duration</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Enter duration (e.g., 2 hours)" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="attendees"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Attendees</FormLabel>
-                  <FormControl>
                     <EmployeeCombobox 
-                      value={field.value || []}
-                      onValueChange={(value) => field.onChange(value || [])}
+                      value={field.value || ''}
+                      onValueChange={(value) => field.onChange(value || null)}
                     />
                   </FormControl>
                 </FormItem>
               )}
             />
-
 
             <FormField
               control={form.control}

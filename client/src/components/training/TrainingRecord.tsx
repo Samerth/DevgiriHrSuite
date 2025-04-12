@@ -68,25 +68,13 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
   const { authState } = useAuth();
   const user = authState.user;
 
-  const [users, setUsers] = useState<Array<{id: number, firstName: string, lastName: string}>>([]);
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await apiRequest('GET', '/api/users');
-        if (Array.isArray(response)) {
-          setUsers(response);
-        } else {
-          console.error('Expected array of users but got:', response);
-          setUsers([]);
-        }
-      } catch (error) {
-        console.error("Error fetching users:", error);
-        // Handle error appropriately, e.g., display a toast message
-      }
-    };
-    fetchUsers();
-  }, []);
+  const { data: users = [] } = useQuery({
+    queryKey: ['/api/users'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/users');
+      return Array.isArray(response) ? response : [];
+    }
+  });
 
 
   const onSubmit = async (data: z.infer<typeof trainingFormSchema>) => {
@@ -299,15 +287,14 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
                   <FormLabel>Attendees</FormLabel>
                   <FormControl>
                     <Select
-                      multiple
-                      value={field.value}
-                      onChange={field.onChange}
+                      onValueChange={(value) => field.onChange([...(field.value || []), value])}
+                      value={field.value?.[0] || ""}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select attendees" />
                       </SelectTrigger>
                       <SelectContent>
-                        {users.map(user => (
+                        {users.map((user: any) => (
                           <SelectItem key={user.id} value={user.id.toString()}>
                             {user.firstName} {user.lastName}
                           </SelectItem>
@@ -315,6 +302,23 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
                       </SelectContent>
                     </Select>
                   </FormControl>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {field.value?.map((attendeeId: string) => {
+                      const attendee = users.find((u: any) => u.id.toString() === attendeeId);
+                      return attendee ? (
+                        <Badge
+                          key={attendeeId}
+                          variant="secondary"
+                          className="cursor-pointer"
+                          onClick={() => {
+                            field.onChange(field.value.filter((id: string) => id !== attendeeId));
+                          }}
+                        >
+                          {attendee.firstName} {attendee.lastName} ×
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
                 </FormItem>
               )}
             />

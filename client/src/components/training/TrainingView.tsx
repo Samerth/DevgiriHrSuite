@@ -18,19 +18,22 @@ interface TrainingViewProps {
 
 export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
   const { data: training, isLoading: isTrainingLoading } = useQuery({
-    queryKey: [`/api/training-records/${id}`],
+    queryKey: ['training', id],
     queryFn: async () => {
       const response = await apiRequest('GET', `/api/training-records/${id}`);
+      if (!response) {
+        throw new Error('Training record not found');
+      }
       return response;
     },
     enabled: open && !!id,
   });
 
   const { data: users = [], isLoading: isUsersLoading } = useQuery({
-    queryKey: ['/api/users'],
+    queryKey: ['users'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/users');
-      return Array.isArray(response) ? response : [];
+      return response || [];
     },
     enabled: open,
   });

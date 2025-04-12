@@ -7,21 +7,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TodayActivity() {
   const today = new Date().toISOString().split('T')[0];
-  
+
   const { data: attendanceData, isLoading } = useQuery({
     queryKey: ["/api/attendance", { date: today }],
   });
-  
+
   const { data: employeesData, isLoading: employeesLoading } = useQuery({
     queryKey: ["/api/employees"],
   });
-  
+
   // Create a map of employee IDs to employee objects for easy lookup
   const employeeMap = employeesData?.reduce((acc: Record<number, any>, employee: any) => {
     acc[employee.id] = employee;
     return acc;
   }, {});
-  
+
   // Merge attendance data with employee data
   const activities = attendanceData?.map((attendance: any) => {
     const employee = employeeMap?.[attendance.employeeId];
@@ -30,7 +30,7 @@ export default function TodayActivity() {
       employee: employee || { firstName: 'Unknown', lastName: 'Employee', position: '-' }
     };
   });
-  
+
   return (
     <Card className="mt-6">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -69,7 +69,7 @@ export default function TodayActivity() {
               ) : activities?.length > 0 ? (
                 activities.map((activity: any) => {
                   const { bg, text } = getAttendanceStatusColor(activity.status);
-                  
+
                   return (
                     <tr className="border-b" key={activity.id}>
                       <td className="py-3 whitespace-nowrap">
@@ -88,10 +88,10 @@ export default function TodayActivity() {
                         </div>
                       </td>
                       <td className="py-3 whitespace-nowrap text-sm text-neutral">
-                        {formatTime(activity.checkIn)}
+                        {activity.checkIn ? formatTime(new Date(activity.checkIn)) : '-'}
                       </td>
                       <td className="py-3 whitespace-nowrap text-sm text-neutral">
-                        {formatTime(activity.checkOut)}
+                        {activity.checkOut ? formatTime(new Date(activity.checkOut)) : '-'}
                       </td>
                       <td className="py-3 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${bg} ${text}`}>

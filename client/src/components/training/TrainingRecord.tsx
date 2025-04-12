@@ -68,13 +68,18 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
   const { authState } = useAuth();
   const user = authState.user;
 
-  const [users, setUsers] = useState([]); // State to hold users data
+  const [users, setUsers] = useState<Array<{id: number, firstName: string, lastName: string}>>([]);
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await apiRequest('GET', '/api/users'); // Assumed API endpoint
-        setUsers(response);
+        const response = await apiRequest('GET', '/api/users');
+        if (Array.isArray(response)) {
+          setUsers(response);
+        } else {
+          console.error('Expected array of users but got:', response);
+          setUsers([]);
+        }
       } catch (error) {
         console.error("Error fetching users:", error);
         // Handle error appropriately, e.g., display a toast message

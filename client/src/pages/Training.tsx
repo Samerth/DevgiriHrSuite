@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { TrainingView } from "@/components/training/TrainingView";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrainingRecord } from "@/components/training/TrainingRecord";
@@ -27,6 +28,8 @@ interface TrainingRecord {
 export default function Training() {
   const { toast } = useToast();
   const [showNewTrainingForm, setShowNewTrainingForm] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -104,7 +107,17 @@ export default function Training() {
                     <TableCell>{record.department}</TableCell>
                     <TableCell className="capitalize">{record.status}</TableCell>
                     <TableCell>{record.notes || '-'}</TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedId(record.id);
+                          setShowViewDialog(true);
+                        }}
+                      >
+                        View
+                      </Button>
                       <Button
                         variant="destructive"
                         size="sm"
@@ -137,6 +150,14 @@ export default function Training() {
           )}
         </CardContent>
       </Card>
+
+      {selectedId && (
+        <TrainingView
+          id={selectedId}
+          open={showViewDialog}
+          onOpenChange={setShowViewDialog}
+        />
+      )}
     </div>
   );
 }

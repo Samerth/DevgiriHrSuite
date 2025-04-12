@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,8 +17,8 @@ interface TrainingViewProps {
 }
 
 export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
-  const { data: training } = useQuery({
-    queryKey: [`/api/training-records/${id}`],
+  const { data: training, isLoading: isTrainingLoading } = useQuery({
+    queryKey: ['training', id],
     queryFn: async () => {
       const response = await apiRequest('GET', `/api/training-records/${id}`);
       return response;
@@ -27,31 +26,28 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
     enabled: open && !!id,
   });
 
-  const { data: users = [] } = useQuery({
-    queryKey: ['/api/users'],
+  const { data: users = [], isLoading: isUsersLoading } = useQuery({
+    queryKey: ['users'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/users');
-      return Array.isArray(response) ? response : [];
+      return response;
     },
     enabled: open,
   });
 
-  const getUser = (id: number) => {
-    return users.find(u => u.id === id);
+  const getUser = (userId: number) => {
+    return users.find((user: any) => user.id === userId);
   };
 
-  if (!training) return null;
+  if (!training || isTrainingLoading || isUsersLoading) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold mb-2">{training.trainingTitle}</DialogTitle>
-          <DialogDescription>
-            <Badge variant={training.status === 'completed' ? 'default' : 'secondary'}>
-              {training.status}
-            </Badge>
-          </DialogDescription>
+          <DialogTitle>{training.trainingTitle}</DialogTitle>
         </DialogHeader>
         
         <div className="grid gap-6">
@@ -72,8 +68,10 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
                   <p className="font-medium">{training.department}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Venue</p>
-                  <p className="font-medium">{training.venue || 'Not specified'}</p>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <p className="font-medium">
+                    <Badge>{training.status}</Badge>
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -81,8 +79,12 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
 
           <Card>
             <CardContent className="pt-6">
-              <h3 className="font-semibold mb-4">Training Details</h3>
+              <h3 className="font-semibold mb-4">Details</h3>
               <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Venue</p>
+                  <p className="font-medium">{training.venue || 'Not specified'}</p>
+                </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Objectives</p>
                   <p className="font-medium">{training.objectives || 'No objectives specified'}</p>
@@ -135,7 +137,7 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
           {training.notes && (
             <Card>
               <CardContent className="pt-6">
-                <h3 className="font-semibold mb-4">Additional Notes</h3>
+                <h3 className="font-semibold mb-4">Notes</h3>
                 <p className="text-sm">{training.notes}</p>
               </CardContent>
             </Card>

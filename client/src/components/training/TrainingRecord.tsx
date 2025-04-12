@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Added useEffect and useState imports
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -25,6 +25,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { EmployeeCombobox } from "@/components/common/EmployeeCombobox"; // Added import
 
+
 const trainingFormSchema = z.object({
   trainingTitle: z.string().min(1, "Training title is required"),
   trainingType: z.string().min(1, "Training type is required"),
@@ -37,6 +38,7 @@ const trainingFormSchema = z.object({
   evaluation: z.string().min(1, "Evaluation method is required"),
   effectiveness: z.string().min(1, "Effectiveness is required"),
   notes: z.string().optional(),
+  attendees: z.array(z.string()).optional(), // Added attendees field to schema
 });
 
 interface TrainingRecordProps {
@@ -58,21 +60,39 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
       materials: '',
       evaluation: '',
       effectiveness: '',
-      notes: ''
+      notes: '',
+      attendees: [] // Added default value for attendees
     }
   });
 
   const { authState } = useAuth();
   const user = authState.user;
 
+  const [users, setUsers] = useState([]); // State to hold users data
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await apiRequest('GET', '/api/users'); // Assumed API endpoint
+        setUsers(response);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        // Handle error appropriately, e.g., display a toast message
+      }
+    };
+    fetchUsers();
+  }, []);
+
+
   const onSubmit = async (data: z.infer<typeof trainingFormSchema>) => {
     try {
-      // Format date and handle trainerId
+      // Format date and handle trainerId and attendees
       const formattedData = {
         ...data,
         userId: data.trainerId ? parseInt(data.trainerId) : null,
         date: new Date(data.date).toISOString(),
-        trainerId: data.trainerId ? parseInt(data.trainerId) : null
+        trainerId: data.trainerId ? parseInt(data.trainerId) : null,
+        attendees: data.attendees.map(Number) // Convert attendees to numbers
       };
 
       console.log('Submitting training data:', formattedData);
@@ -172,7 +192,7 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
                 <FormItem>
                   <FormLabel>Trainer</FormLabel>
                   <FormControl>
-                    <EmployeeCombobox 
+                    <EmployeeCombobox
                       value={field.value || ''}
                       onValueChange={(value) => field.onChange(value || null)}
                     />
@@ -268,12 +288,40 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
 
             <FormField
               control={form.control}
+              name="attendees"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Attendees</FormLabel>
+                  <FormControl>
+                    <Select
+                      multiple
+                      value={field.value}
+                      onChange={field.onChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select attendees" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map(user => (
+                          <SelectItem key={user.id} value={user.id.toString()}>
+                            {user.firstName} {user.lastName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Additional Notes</FormLabel>
+                  <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Textarea {...field} placeholder="Enter any additional notes" />
+                    <Textarea {...field} />
                   </FormControl>
                 </FormItem>
               )}

@@ -109,6 +109,7 @@ export const trainingRecords = pgTable("training_records", {
   assessmentScore: integer("assessment_score"),
   effectiveness: text("effectiveness"),
   notes: text("notes"),
+  attendees: text("attendees").array(),
 });
 
 // Training Feedback Table

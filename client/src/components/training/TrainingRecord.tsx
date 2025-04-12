@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"; // Added useEffect and useState imp
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,

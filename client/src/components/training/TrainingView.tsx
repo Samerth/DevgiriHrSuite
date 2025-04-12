@@ -6,8 +6,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface TrainingViewProps {
   id: number;
@@ -44,72 +46,99 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{training.trainingTitle}</DialogTitle>
+          <DialogTitle className="text-xl font-bold mb-2">{training.trainingTitle}</DialogTitle>
+          <DialogDescription>
+            <Badge variant={training.status === 'completed' ? 'default' : 'secondary'}>
+              {training.status}
+            </Badge>
+          </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <h4 className="font-medium mb-2">Basic Information</h4>
-              <div className="space-y-2">
-                <p><span className="font-medium">Type:</span> {training.trainingType}</p>
-                <p><span className="font-medium">Date:</span> {new Date(training.date).toLocaleDateString()}</p>
-                <p><span className="font-medium">Department:</span> {training.department}</p>
-                <p><span className="font-medium">Status:</span> <Badge>{training.status}</Badge></p>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2">Training Details</h4>
-              <div className="space-y-2">
-                <p><span className="font-medium">Venue:</span> {training.venue}</p>
-                <p><span className="font-medium">Evaluation:</span> {training.evaluation}</p>
-                <p><span className="font-medium">Effectiveness:</span> {training.effectiveness}</p>
-                {training.assessmentScore && (
-                  <p><span className="font-medium">Assessment Score:</span> {training.assessmentScore}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-medium mb-2">Objectives</h4>
-            <p className="text-sm">{training.objectives}</p>
-          </div>
-
-          <div>
-            <h4 className="font-medium mb-2">Materials</h4>
-            <p className="text-sm">{training.materials}</p>
-          </div>
-
-          <div>
-            <h4 className="font-medium mb-2">People</h4>
-            <div className="space-y-2">
-              <p>
-                <span className="font-medium">Trainer:</span>{" "}
-                {training.trainerId && getUser(training.trainerId)
-                  ? `${getUser(training.trainerId)?.firstName} ${getUser(training.trainerId)?.lastName}`
-                  : "Not assigned"}
-              </p>
-              <div>
-                <span className="font-medium">Attendees:</span>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {training.attendees?.map((attendeeId: number) => {
-                    const attendee = getUser(attendeeId);
-                    return attendee ? (
-                      <Badge key={attendeeId} variant="secondary">
-                        {attendee.firstName} {attendee.lastName}
-                      </Badge>
-                    ) : null;
-                  })}
+        
+        <div className="grid gap-6">
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="font-semibold mb-4">Basic Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Training Type</p>
+                  <p className="font-medium">{training.trainingType}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Date</p>
+                  <p className="font-medium">{new Date(training.date).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Department</p>
+                  <p className="font-medium">{training.department}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Venue</p>
+                  <p className="font-medium">{training.venue || 'Not specified'}</p>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="font-semibold mb-4">Training Details</h3>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Objectives</p>
+                  <p className="font-medium">{training.objectives || 'No objectives specified'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Materials</p>
+                  <p className="font-medium">{training.materials || 'No materials specified'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Evaluation Method</p>
+                  <p className="font-medium">{training.evaluation || 'Not specified'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Effectiveness</p>
+                  <p className="font-medium">{training.effectiveness || 'Not evaluated'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="font-semibold mb-4">People</h3>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Trainer</p>
+                  <p className="font-medium">
+                    {training.trainerId && getUser(training.trainerId)
+                      ? `${getUser(training.trainerId)?.firstName} ${getUser(training.trainerId)?.lastName}`
+                      : 'Not assigned'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Attendees</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {training.attendees?.map((attendeeId: number) => {
+                      const attendee = getUser(attendeeId);
+                      return attendee ? (
+                        <Badge key={attendeeId} variant="outline">
+                          {attendee.firstName} {attendee.lastName}
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {training.notes && (
-            <div>
-              <h4 className="font-medium mb-2">Notes</h4>
-              <p className="text-sm">{training.notes}</p>
-            </div>
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="font-semibold mb-4">Additional Notes</h3>
+                <p className="text-sm">{training.notes}</p>
+              </CardContent>
+            </Card>
           )}
         </div>
       </DialogContent>

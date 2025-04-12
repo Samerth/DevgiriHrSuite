@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"; // Added useEffect and useState imports
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,

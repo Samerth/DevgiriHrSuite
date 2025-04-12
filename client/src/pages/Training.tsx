@@ -90,6 +90,7 @@ export default function Training() {
                   <TableHead>Department</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Notes</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -101,6 +102,32 @@ export default function Training() {
                     <TableCell>{record.department}</TableCell>
                     <TableCell className="capitalize">{record.status}</TableCell>
                     <TableCell>{record.notes || '-'}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            await fetch(`/api/training-records/${record.id}`, {
+                              method: 'DELETE',
+                            });
+                            toast({
+                              title: "Success",
+                              description: "Training record deleted successfully",
+                            });
+                            fetchTrainingRecords();
+                          } catch (error) {
+                            toast({
+                              variant: "destructive",
+                              title: "Error",
+                              description: "Failed to delete training record",
+                            });
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

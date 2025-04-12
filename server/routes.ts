@@ -614,6 +614,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/training-records/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteTrainingRecord(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   app.post("/api/training-records", requireAuth, async (req, res) => {
     try {
       console.log('Received training record data:', req.body);

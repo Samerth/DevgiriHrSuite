@@ -985,6 +985,15 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  async deleteTrainingRecord(id: number): Promise<void> {
+    try {
+      await this.db.delete(trainingRecords).where(eq(trainingRecords.id, id));
+    } catch (error) {
+      console.error('Error in deleteTrainingRecord:', error);
+      throw error;
+    }
+  }
 }
 
 // Create a database storage instance

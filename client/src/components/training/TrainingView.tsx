@@ -18,7 +18,7 @@ interface TrainingViewProps {
 
 export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
   const { data: training, isLoading: isTrainingLoading } = useQuery({
-    queryKey: ['training', id],
+    queryKey: [`/api/training-records/${id}`],
     queryFn: async () => {
       const response = await apiRequest('GET', `/api/training-records/${id}`);
       return response;
@@ -27,20 +27,40 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
   });
 
   const { data: users = [], isLoading: isUsersLoading } = useQuery({
-    queryKey: ['users'],
+    queryKey: ['/api/users'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/users');
-      return response;
+      return Array.isArray(response) ? response : [];
     },
     enabled: open,
   });
 
   const getUser = (userId: number) => {
+    if (!Array.isArray(users)) return null;
     return users.find((user: any) => user.id === userId);
   };
 
-  if (!training || isTrainingLoading || isUsersLoading) {
-    return null;
+  console.log('Training data:', training);
+  console.log('Users data:', users);
+
+  if (isTrainingLoading || isUsersLoading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl">
+          <div className="p-4 text-center">Loading...</div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (!training) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl">
+          <div className="p-4 text-center">No training record found</div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (

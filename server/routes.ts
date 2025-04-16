@@ -614,6 +614,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/training-records/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const record = await storage.getTrainingRecord(id);
+      
+      if (!record) {
+        return res.status(404).json({ error: "Training record not found" });
+      }
+      
+      res.json(record);
+    } catch (error) {
+      console.error('Error fetching training record:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
   app.delete("/api/training-records/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -638,7 +654,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         date: z.string(),
         department: z.string().optional(),
         trainerId: z.number().nullable(),
-        notes: z.string().optional()
+        notes: z.string().optional(),
+        venue: z.string().optional(),
+        objectives: z.string().optional(),
+        materials: z.string().optional(),
+        evaluation: z.string().optional(),
+        effectiveness: z.string().optional()
       });
 
       const validatedData = schema.parse(req.body);
@@ -672,6 +693,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pendingRequests: pendingLeaveRequests.length
       });
     } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  // Training Assessment Parameters endpoints
+  app.get("/api/training-assessment-parameters", requireAuth, async (req, res) => {
+    try {
+      const parameters = await storage.getTrainingAssessmentParameters();
+      res.json(parameters);
+    } catch (error) {
+      console.error("Error fetching assessment parameters:", error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/training-assessments", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        trainingId: z.number(),
+        userId: z.number(),
+        assessorId: z.number(),
+        assessmentDate: z.string(),
+        frequency: z.string(),
+        comments: z.string().optional(),
+        totalScore: z.number(),
+        status: z.string(),
+        scores: z.array(z.object({
+          parameterId: z.number(),
+          score: z.number(),
+        })),
+      });
+
+      const validatedData = schema.parse(req.body);
+      const assessment = await storage.createTrainingAssessment(validatedData);
+      res.status(201).json(assessment);
+    } catch (error) {
+      console.error("Error creating assessment:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/training-assessments/:trainingId", requireAuth, async (req, res) => {
+    try {
+      const trainingId = parseInt(req.params.trainingId);
+      const assessments = await storage.getTrainingAssessments(trainingId);
+      res.json(assessments);
+    } catch (error) {
+      console.error("Error fetching assessments:", error);
       res.status(500).json({ error: (error as Error).message });
     }
   });

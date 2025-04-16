@@ -1,14 +1,92 @@
-
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { apiRequest } from "@/lib/queryClient";
+import { TrainingAssessment } from "./TrainingAssessment";
+import { TrainingFeedbackForm } from "./TrainingFeedbackForm";
+
+interface TrainingRecord {
+  id: number;
+  trainingTitle: string;
+  trainingType: string;
+  date: string;
+  department: string;
+  status: string;
+  trainerId: number | null;
+  venue?: string;
+  objectives?: string;
+  materials?: string;
+  evaluation?: string;
+  effectiveness?: string;
+  notes?: string;
+  attendees?: number[];
+  assessmentScore?: number;
+}
+
+interface Assessment {
+  assessment: {
+    id: number;
+    trainingId: number;
+    userId: number;
+    assessorId: number;
+    assessmentDate: string;
+    frequency: string;
+    totalScore: number;
+    status: string;
+    comments?: string;
+  };
+  user: {
+    id: number;
+    firstName: string;
+    lastName: string;
+  } | null;
+  assessor: {
+    id: number;
+    firstName: string;
+    lastName: string;
+  } | null;
+  scores: {
+    id: number;
+    assessmentId: number;
+    parameterId: number;
+    score: number;
+  }[];
+}
+
+interface Feedback {
+  id: number;
+  trainingId: number;
+  userId: number;
+  isEffective: boolean;
+  trainingAidsGood: boolean;
+  durationSufficient: boolean;
+  contentExplained: boolean;
+  conductedProperly: boolean;
+  learningEnvironment: boolean;
+  helpfulForWork: boolean;
+  additionalTopics: string | null;
+  keyLearnings: string | null;
+  specialObservations: string | null;
+  user: {
+    id: number;
+    firstName: string;
+    lastName: string;
+  } | null;
+}
 
 interface TrainingViewProps {
   id: number;
@@ -16,156 +94,336 @@ interface TrainingViewProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const parameterNames = {
+  1: 'Operating process for different products',
+  2: 'Knowledge regarding his Tools & Equipments',
+  3: 'Awareness regarding products defects',
+  4: 'Knowledge regarding Procedure for Broken Needle',
+  5: 'Awareness regarding waste control',
+  6: 'Use of refrence/approved samples',
+  7: 'Knowledge regarding Buyers product protocol',
+  8: 'Effective communication skills',
+  9: 'Knowledge of safe working methods',
+  10: 'Knowledge regarding machine setting'
+};
+
 export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
-  const { data: training, isLoading: isTrainingLoading } = useQuery({
-    queryKey: ['training', id],
+  const [activeTab, setActiveTab] = useState("details");
+  const [showAssessmentForm, setShowAssessmentForm] = useState(false);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+
+  const { data: training, isLoading: isTrainingLoading } = useQuery<TrainingRecord>({
+    queryKey: ["training-record", id],
     queryFn: async () => {
-      const response = await apiRequest('GET', `/api/training-records/${id}`);
-      if (!response) {
-        throw new Error('Training record not found');
+      const response = await apiRequest("GET", `/api/training-records/${id}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch training record");
       }
-      return response;
+      const data = await response.json();
+      return data;
     },
-    enabled: open && !!id,
+    enabled: !!id,
   });
 
-  const { data: users = [], isLoading: isUsersLoading } = useQuery({
-    queryKey: ['users'],
+  const { data: assessmentsData, isLoading: isAssessmentsLoading } = useQuery<Assessment[]>({
+    queryKey: ["training-assessments", id],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/users');
-      return response || [];
+      const response = await apiRequest("GET", `/api/training-assessments/${id}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch assessments");
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
-    enabled: open,
+    enabled: !!id,
   });
 
-  const getUser = (userId: number) => {
-    if (!Array.isArray(users)) return null;
-    return users.find((user: any) => user.id === userId);
+  const { data: feedbackData, isLoading: isFeedbackLoading } = useQuery<Feedback[]>({
+    queryKey: ["training-feedback", id],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/training-feedback/${id}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch feedback");
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!id,
+  });
+
+  const assessments = assessmentsData || [];
+  const feedback = feedbackData || [];
+
+  if (isTrainingLoading || !training) {
+    return null;
+  }
+
+  const handleAssessmentSuccess = () => {
+    setShowAssessmentForm(false);
   };
 
-  console.log('Training data:', training);
-  console.log('Users data:', users);
-
-  if (isTrainingLoading || isUsersLoading) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl">
-          <div className="p-4 text-center">Loading...</div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  if (!training) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl">
-          <div className="p-4 text-center">No training record found</div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  const handleFeedbackSuccess = () => {
+    setShowFeedbackForm(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="training-view-description">
         <DialogHeader>
           <DialogTitle>{training.trainingTitle}</DialogTitle>
+          <p id="training-view-description" className="text-sm text-muted-foreground">
+            View and manage training details and assessments
+          </p>
         </DialogHeader>
         
-        <div className="grid gap-6">
-          <Card>
-            <CardContent className="pt-6">
-              <h3 className="font-semibold mb-4">Basic Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Training Type</p>
-                  <p className="font-medium">{training.trainingType}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Date</p>
-                  <p className="font-medium">{new Date(training.date).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Department</p>
-                  <p className="font-medium">{training.department}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Status</p>
-                  <p className="font-medium">
-                    <Badge>{training.status}</Badge>
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="overflow-hidden">
+          <TabsList>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="assessments">Assessments</TabsTrigger>
+            <TabsTrigger value="feedback">Feedback</TabsTrigger>
+          </TabsList>
 
-          <Card>
-            <CardContent className="pt-6">
-              <h3 className="font-semibold mb-4">Details</h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Venue</p>
-                  <p className="font-medium">{training.venue || 'Not specified'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Objectives</p>
-                  <p className="font-medium">{training.objectives || 'No objectives specified'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Materials</p>
-                  <p className="font-medium">{training.materials || 'No materials specified'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Evaluation Method</p>
-                  <p className="font-medium">{training.evaluation || 'Not specified'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Effectiveness</p>
-                  <p className="font-medium">{training.effectiveness || 'Not evaluated'}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <h3 className="font-semibold mb-4">People</h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Trainer</p>
-                  <p className="font-medium">
-                    {training.trainerId && getUser(training.trainerId)
-                      ? `${getUser(training.trainerId)?.firstName} ${getUser(training.trainerId)?.lastName}`
-                      : 'Not assigned'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Attendees</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {training.attendees?.map((attendeeId: number) => {
-                      const attendee = getUser(attendeeId);
-                      return attendee ? (
-                        <Badge key={attendeeId} variant="outline">
-                          {attendee.firstName} {attendee.lastName}
-                        </Badge>
-                      ) : null;
-                    })}
+          <TabsContent value="details">
+            <div className="grid gap-6">
+              <Card>
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold mb-4">Basic Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Training Type</p>
+                      <p className="font-medium">{training.trainingType}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Date</p>
+                      <p className="font-medium">{new Date(training.date).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Department</p>
+                      <p className="font-medium">{training.department}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <div className="font-medium">
+                        <Badge>{training.status}</Badge>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          {training.notes && (
-            <Card>
-              <CardContent className="pt-6">
-                <h3 className="font-semibold mb-4">Notes</h3>
-                <p className="text-sm">{training.notes}</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              <Card>
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold mb-4">Details</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Venue</p>
+                      <p className="font-medium">{training.venue || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Objectives</p>
+                      <p className="font-medium">{training.objectives || 'No objectives specified'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Materials</p>
+                      <p className="font-medium">{training.materials || 'No materials specified'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Evaluation Method</p>
+                      <p className="font-medium">{training.evaluation || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Effectiveness</p>
+                      <p className="font-medium">{training.effectiveness || 'Not evaluated'}</p>
+                    </div>
+                    {training.notes && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Notes</p>
+                        <p className="font-medium">{training.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="assessments">
+            <div className="space-y-6">
+              {!showAssessmentForm && (
+                <div className="flex justify-end">
+                  <Button onClick={() => setShowAssessmentForm(true)}>
+                    Add Assessment
+                  </Button>
+                </div>
+              )}
+
+              {showAssessmentForm ? (
+                <TrainingAssessment
+                  trainingId={id}
+                  onSuccess={handleAssessmentSuccess}
+                />
+              ) : (
+                <div className="space-y-4">
+                  {assessments.map((assessment) => (
+                    <Card key={assessment.assessment.id}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base">
+                            Assessment on {new Date(assessment.assessment.assessmentDate).toLocaleDateString()}
+                          </CardTitle>
+                          <Badge>
+                            {assessment.assessment.status}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-muted-foreground">Employee</p>
+                              <p className="font-medium">
+                                {assessment.user ? 
+                                  `${assessment.user.firstName} ${assessment.user.lastName}` : 
+                                  'Unknown'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Assessor</p>
+                              <p className="font-medium">
+                                {assessment.assessor ? 
+                                  `${assessment.assessor.firstName} ${assessment.assessor.lastName}` : 
+                                  'Unknown'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Total Score</p>
+                              <p className="font-medium">{assessment.assessment.totalScore}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Frequency</p>
+                              <p className="font-medium">{assessment.assessment.frequency}</p>
+                            </div>
+                          </div>
+
+                          {assessment.assessment.comments && (
+                            <div>
+                              <p className="text-sm text-muted-foreground">Comments</p>
+                              <p className="font-medium">{assessment.assessment.comments}</p>
+                            </div>
+                          )}
+
+                          <div>
+                            <p className="text-sm font-medium mb-2">Work Performance</p>
+                            <div className="space-y-2">
+                              {assessment.scores.map((score) => (
+                                <div key={score.id} className="flex items-center justify-between">
+                                  <span className="text-sm">{parameterNames[score.parameterId as keyof typeof parameterNames]}</span>
+                                  <span className="font-medium">{score.score}</span>
+                                </div>
+                              ))}
+                              <div className="flex items-center justify-between pt-2 border-t">
+                                <span className="text-sm font-medium">TOTAL</span>
+                                <span className="font-medium">{assessment.assessment.totalScore}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="feedback">
+            <div className="space-y-6">
+              {!showFeedbackForm && (
+                <div className="flex justify-end">
+                  <Button onClick={() => setShowFeedbackForm(true)}>
+                    Add Feedback
+                  </Button>
+                </div>
+              )}
+
+              {showFeedbackForm ? (
+                <TrainingFeedbackForm
+                  trainingId={id}
+                  onSuccess={handleFeedbackSuccess}
+                />
+              ) : (
+                <div className="space-y-4">
+                  {feedback.map((item) => (
+                    <Card key={item.id}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base">
+                            Feedback from {item.user ? `${item.user.firstName} ${item.user.lastName}` : 'Unknown'}
+                          </CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-muted-foreground">Course Effective</p>
+                              <p className="font-medium">{item.isEffective ? "Yes" : "No"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Training Aids Good</p>
+                              <p className="font-medium">{item.trainingAidsGood ? "Yes" : "No"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Duration Sufficient</p>
+                              <p className="font-medium">{item.durationSufficient ? "Yes" : "No"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Content Explained Well</p>
+                              <p className="font-medium">{item.contentExplained ? "Yes" : "No"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Conducted Properly</p>
+                              <p className="font-medium">{item.conductedProperly ? "Yes" : "No"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Good Learning Environment</p>
+                              <p className="font-medium">{item.learningEnvironment ? "Yes" : "No"}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Helpful for Work</p>
+                              <p className="font-medium">{item.helpfulForWork ? "Yes" : "No"}</p>
+                            </div>
+                          </div>
+
+                          {item.additionalTopics && (
+                            <div>
+                              <p className="text-sm text-muted-foreground">Additional Topics Suggested</p>
+                              <p className="font-medium">{item.additionalTopics}</p>
+                            </div>
+                          )}
+
+                          {item.keyLearnings && (
+                            <div>
+                              <p className="text-sm text-muted-foreground">Key Learnings</p>
+                              <p className="font-medium">{item.keyLearnings}</p>
+                            </div>
+                          )}
+
+                          {item.specialObservations && (
+                            <div>
+                              <p className="text-sm text-muted-foreground">Special Observations</p>
+                              <p className="font-medium">{item.specialObservations}</p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

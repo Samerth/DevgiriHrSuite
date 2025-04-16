@@ -1,6 +1,6 @@
 import { eq, and, desc, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { users, attendance, leaveRequests, trainingRecords } from "./db/schema";
+import { users, attendance, leaveRequests, trainingRecords, trainingAssessments, trainingAssessmentParameters, trainingAssessmentScores } from "./db/schema";
 import { 
   type User,
   type InsertUser,
@@ -80,6 +80,23 @@ export interface IStorage {
   //Training Records
   createTrainingRecord(data: any): Promise<any>;
   getAllTrainingRecords(): Promise<any[]>;
+  getTrainingRecord(id: number): Promise<any>;
+  deleteTrainingRecord(id: number): Promise<void>;
+
+  // Training Assessment Methods
+  getTrainingAssessmentParameters(): Promise<{ id: number; name: string; maxScore: number; }[]>;
+  createTrainingAssessment(data: {
+    trainingId: number;
+    userId: number;
+    assessorId: number;
+    assessmentDate: string;
+    frequency: string;
+    comments?: string;
+    totalScore: number;
+    status: string;
+    scores: { parameterId: number; score: number; }[];
+  }): Promise<any>;
+  getTrainingAssessments(trainingId: number): Promise<any[]>;
 }
 
 // In-Memory Storage implementation
@@ -88,20 +105,30 @@ export class MemStorage implements IStorage {
   private attendance: Map<number, Attendance>;
   private leaveRequests: Map<number, LeaveRequest>;
   private trainingRecords: Map<number, any>;
+  private trainingAssessmentParameters: Map<number, { id: number; name: string; maxScore: number; }>;
+  private trainingAssessments: Map<number, any>;
+  private trainingAssessmentScores: Map<number, any>;
   private currentUserId: number;
   private currentAttendanceId: number;
   private currentLeaveRequestId: number;
   private currentTrainingRecordId: number;
+  private currentAssessmentId: number;
+  private currentScoreId: number;
 
   constructor() {
     this.users = new Map();
     this.attendance = new Map();
     this.leaveRequests = new Map();
     this.trainingRecords = new Map();
+    this.trainingAssessmentParameters = new Map();
+    this.trainingAssessments = new Map();
+    this.trainingAssessmentScores = new Map();
     this.currentUserId = 1;
     this.currentAttendanceId = 1;
     this.currentLeaveRequestId = 1;
     this.currentTrainingRecordId = 1;
+    this.currentAssessmentId = 1;
+    this.currentScoreId = 1;
 
     // Add some initial admin user
     this.createUser({
@@ -502,6 +529,111 @@ export class MemStorage implements IStorage {
 
   async getAllTrainingRecords(): Promise<any[]> {
     return Array.from(this.trainingRecords.values());
+  }
+
+  async getTrainingRecord(id: number): Promise<any> {
+    return this.trainingRecords.get(id);
+  }
+
+  async deleteTrainingRecord(id: number): Promise<void> {
+    this.trainingRecords.delete(id);
+  }
+
+  // Training Assessment Methods
+  async getTrainingAssessmentParameters(): Promise<{ id: number; name: string; maxScore: number; }[]> {
+    return Array.from(this.trainingAssessmentParameters.values());
+  }
+
+  async createTrainingAssessment(data: {
+    trainingId: number;
+    userId: number;
+    assessorId: number;
+    assessmentDate: string;
+    frequency: string;
+    comments?: string;
+    totalScore: number;
+    status: string;
+    scores: { parameterId: number; score: number; }[];
+  }): Promise<any> {
+    const id = this.currentAssessmentId++;
+    const assessment = {
+      id,
+      ...data,
+      createdAt: new Date().toISOString(),
+    };
+    this.trainingAssessments.set(id, assessment);
+
+    // Create assessment scores
+    data.scores.forEach(score => {
+      const scoreId = this.currentScoreId++;
+      this.trainingAssessmentScores.set(scoreId, {
+        id: scoreId,
+        assessmentId: id,
+        ...score,
+        createdAt: new Date().toISOString(),
+      });
+    });
+
+    // Update training record
+    const trainingRecord = this.trainingRecords.get(data.trainingId);
+    if (trainingRecord) {
+      trainingRecord.assessmentScore = data.totalScore;
+      trainingRecord.status = data.status === "satisfactory" ? "completed" : "needs_improvement";
+      this.trainingRecords.set(data.trainingId, trainingRecord);
+    }
+
+    return assessment;
+  }
+
+  async getTrainingAssessments(trainingId: number): Promise<any[]> {
+    try {
+      // First get all assessments for the training
+      const assessments = await this.db.select()
+        .from(trainingAssessments)
+        .where(eq(trainingAssessments.trainingId, trainingId));
+      
+      // Then fetch user and assessor details for each assessment
+      const assessmentsWithDetails = await Promise.all(
+        assessments.map(async (assessment) => {
+          // Get user details
+          const userResult = await this.db.select({
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          })
+          .from(users)
+          .where(eq(users.id, assessment.userId))
+          .limit(1);
+          
+          // Get assessor details
+          const assessorResult = await this.db.select({
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          })
+          .from(users)
+          .where(eq(users.id, assessment.assessorId))
+          .limit(1);
+          
+          // Get scores for this assessment
+          const scores = await this.db.select()
+            .from(trainingAssessmentScores)
+            .where(eq(trainingAssessmentScores.assessmentId, assessment.id));
+          
+          return {
+            assessment,
+            user: userResult[0] || null,
+            assessor: assessorResult[0] || null,
+            scores,
+          };
+        })
+      );
+      
+      return assessmentsWithDetails;
+    } catch (error) {
+      console.error("Error in getTrainingAssessments:", error);
+      throw error;
+    }
   }
 }
 
@@ -965,7 +1097,11 @@ export class DatabaseStorage implements IStorage {
         notes: data.notes || null,
         feedbackScore: null,
         assessmentScore: null,
-        effectiveness: null
+        effectiveness: data.effectiveness || null,
+        venue: data.venue || null,
+        objectives: data.objectives || null,
+        materials: data.materials || null,
+        evaluation: data.evaluation || null
       }).returning();
 
       console.log('Created training record:', result[0]);
@@ -986,11 +1122,167 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getTrainingRecord(id: number): Promise<any> {
+    try {
+      const records = await this.db
+        .select()
+        .from(trainingRecords)
+        .where(eq(trainingRecords.id, id))
+        .limit(1);
+      return records[0];
+    } catch (error) {
+      console.error('Error in getTrainingRecord:', error);
+      throw error;
+    }
+  }
+
   async deleteTrainingRecord(id: number): Promise<void> {
     try {
-      await this.db.delete(trainingRecords).where(eq(trainingRecords.id, id));
+      // Start a transaction to ensure all operations succeed or fail together
+      await this.db.transaction(async (tx) => {
+        // First get all assessments for this training
+        const assessments = await tx.select()
+          .from(trainingAssessments)
+          .where(eq(trainingAssessments.trainingId, id));
+
+        // For each assessment, delete its scores
+        for (const assessment of assessments) {
+          await tx.delete(trainingAssessmentScores)
+            .where(eq(trainingAssessmentScores.assessmentId, assessment.id));
+        }
+
+        // Delete all assessments for this training
+        await tx.delete(trainingAssessments)
+          .where(eq(trainingAssessments.trainingId, id));
+
+        // Finally delete the training record
+        await tx.delete(trainingRecords)
+          .where(eq(trainingRecords.id, id));
+      });
     } catch (error) {
       console.error('Error in deleteTrainingRecord:', error);
+      throw error;
+    }
+  }
+
+  // Training Assessment Methods
+  async getTrainingAssessmentParameters(): Promise<{ id: number; name: string; maxScore: number; }[]> {
+    try {
+      const parameters = await this.db.select().from(trainingAssessmentParameters);
+      return parameters;
+    } catch (error) {
+      console.error("Error in getTrainingAssessmentParameters:", error);
+      throw error;
+    }
+  }
+
+  async createTrainingAssessment(data: {
+    trainingId: number;
+    userId: number;
+    assessorId: number;
+    assessmentDate: string;
+    frequency: string;
+    comments?: string;
+    totalScore: number;
+    status: string;
+    scores: { parameterId: number; score: number; }[];
+  }): Promise<any> {
+    try {
+      // First check if the training record exists
+      const training = await this.db.select()
+        .from(trainingRecords)
+        .where(eq(trainingRecords.id, data.trainingId))
+        .limit(1);
+
+      if (!training || training.length === 0) {
+        throw new Error(`Training record with ID ${data.trainingId} not found`);
+      }
+
+      // Create the assessment record
+      const [assessment] = await this.db.insert(trainingAssessments).values({
+        trainingId: data.trainingId,
+        userId: data.userId,
+        assessorId: data.assessorId,
+        assessmentDate: data.assessmentDate,
+        frequency: data.frequency,
+        comments: data.comments || null,
+        totalScore: data.totalScore,
+        status: data.status,
+      }).returning();
+
+      // Create the assessment scores
+      const scorePromises = data.scores.map(score =>
+        this.db.insert(trainingAssessmentScores).values({
+          assessmentId: assessment.id,
+          parameterId: score.parameterId,
+          score: score.score,
+        })
+      );
+
+      await Promise.all(scorePromises);
+
+      // Update the training record with the assessment score
+      await this.db.update(trainingRecords)
+        .set({
+          assessmentScore: data.totalScore,
+          status: data.status === "satisfactory" ? "completed" : "needs_improvement"
+        })
+        .where(eq(trainingRecords.id, data.trainingId));
+
+      return assessment;
+    } catch (error) {
+      console.error("Error in createTrainingAssessment:", error);
+      throw error;
+    }
+  }
+
+  async getTrainingAssessments(trainingId: number): Promise<any[]> {
+    try {
+      // First get all assessments for the training
+      const assessments = await this.db.select()
+        .from(trainingAssessments)
+        .where(eq(trainingAssessments.trainingId, trainingId));
+      
+      // Then fetch user and assessor details for each assessment
+      const assessmentsWithDetails = await Promise.all(
+        assessments.map(async (assessment) => {
+          // Get user details
+          const userResult = await this.db.select({
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          })
+          .from(users)
+          .where(eq(users.id, assessment.userId))
+          .limit(1);
+          
+          // Get assessor details
+          const assessorResult = await this.db.select({
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          })
+          .from(users)
+          .where(eq(users.id, assessment.assessorId))
+          .limit(1);
+          
+          // Get scores for this assessment
+          const scores = await this.db.select()
+            .from(trainingAssessmentScores)
+            .where(eq(trainingAssessmentScores.assessmentId, assessment.id));
+          
+          return {
+            assessment,
+            user: userResult[0] || null,
+            assessor: assessorResult[0] || null,
+            scores,
+          };
+        })
+      );
+      
+      return assessmentsWithDetails;
+    } catch (error) {
+      console.error("Error in getTrainingAssessments:", error);
       throw error;
     }
   }

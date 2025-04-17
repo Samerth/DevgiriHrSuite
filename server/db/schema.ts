@@ -1,4 +1,5 @@
 import { pgTable, serial, text, timestamp, boolean, integer, date } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -110,6 +111,18 @@ export const trainingFeedback = pgTable("training_feedback", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+// Add relations
+export const trainingFeedbackRelations = relations(trainingFeedback, ({ one }) => ({
+  user: one(users, {
+    fields: [trainingFeedback.userId],
+    references: [users.id],
+  }),
+  training: one(trainingRecords, {
+    fields: [trainingFeedback.trainingId],
+    references: [trainingRecords.id],
+  }),
+}));
 
 // Training Attendees Table
 export const trainingAttendees = pgTable("training_attendees", {

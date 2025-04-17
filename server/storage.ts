@@ -1,6 +1,6 @@
 import { eq, and, desc, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { users, attendance, leaveRequests, trainingRecords, trainingAssessments, trainingAssessmentParameters, trainingAssessmentScores, trainingFeedback } from "./db/schema";
+import { users, attendance, leaveRequests, trainingRecords, trainingAssessments, trainingAssessmentParameters, trainingAssessmentScores, trainingFeedback, trainingAttendees } from "./db/schema";
 import { 
   type User,
   type InsertUser,
@@ -13,7 +13,6 @@ import {
 } from "@shared/schema";
 import { between, gte, lte, like, or, isNull, asc } from "drizzle-orm";
 import { db } from "./db";
-import { type Database } from "drizzle-orm";
 import { PgDatabase } from "drizzle-orm/pg-core";
 
 // Storage interface
@@ -97,6 +96,24 @@ export interface IStorage {
     scores: { parameterId: number; score: number; }[];
   }): Promise<any>;
   getTrainingAssessments(trainingId: number): Promise<any[]>;
+  
+  // Training Feedback Methods
+  getTrainingFeedback(trainingId: number): Promise<any[]>;
+  submitTrainingFeedback(data: {
+    trainingId: number;
+    userId: number;
+    isEffective: boolean;
+    trainingAidsGood: boolean;
+    durationSufficient: boolean;
+    contentExplained: boolean;
+    conductedProperly: boolean;
+    learningEnvironment: boolean;
+    helpfulForWork: boolean;
+    additionalTopics?: string;
+    keyLearnings?: string;
+    specialObservations?: string;
+  }): Promise<any>;
+  markTrainingAttendance(trainingId: number, userId: number): Promise<any>;
 }
 
 // In-Memory Storage implementation
@@ -108,12 +125,16 @@ export class MemStorage implements IStorage {
   private trainingAssessmentParameters: Map<number, { id: number; name: string; maxScore: number; }>;
   private trainingAssessments: Map<number, any>;
   private trainingAssessmentScores: Map<number, any>;
+  private trainingFeedback: Map<number, any>;
+  private trainingAttendees: Map<number, any>;
   private currentUserId: number;
   private currentAttendanceId: number;
   private currentLeaveRequestId: number;
   private currentTrainingRecordId: number;
   private currentAssessmentId: number;
   private currentScoreId: number;
+  private currentFeedbackId: number;
+  private currentTrainingAttendanceId: number;
 
   constructor() {
     this.users = new Map();
@@ -123,12 +144,16 @@ export class MemStorage implements IStorage {
     this.trainingAssessmentParameters = new Map();
     this.trainingAssessments = new Map();
     this.trainingAssessmentScores = new Map();
+    this.trainingFeedback = new Map();
+    this.trainingAttendees = new Map();
     this.currentUserId = 1;
     this.currentAttendanceId = 1;
     this.currentLeaveRequestId = 1;
     this.currentTrainingRecordId = 1;
     this.currentAssessmentId = 1;
     this.currentScoreId = 1;
+    this.currentFeedbackId = 1;
+    this.currentTrainingAttendanceId = 1;
 
     // Add some initial admin user
     this.createUser({
@@ -323,6 +348,26 @@ export class MemStorage implements IStorage {
       .where(eq(attendance.id, id))
       .returning();
     return result[0];
+  }
+
+  async getTodayAttendance(): Promise<(Attendance & { user: User })[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayAttendance = Array.from(this.attendance.values())
+      .filter((att: Attendance) => {
+        const attDate = new Date(att.date);
+        attDate.setHours(0, 0, 0, 0);
+        return attDate.getTime() === today.getTime();
+      });
+    
+    return todayAttendance.map((att: Attendance) => {
+      const user = this.users.get(att.userId);
+      return {
+        ...att,
+        user: user || { id: 0, name: 'Unknown', username: 'unknown', email: '', role: 'employee', department: 'unknown' }
+      };
+    });
   }
 
   // Leave Request Methods
@@ -634,6 +679,76 @@ export class MemStorage implements IStorage {
       console.error("Error in getTrainingAssessments:", error);
       throw error;
     }
+  }
+
+  // Training Feedback Methods
+  async getTrainingFeedback(trainingId: number): Promise<any[]> {
+    try {
+      const feedback = await this.db.query.trainingFeedback.findMany({
+        where: eq(trainingFeedback.trainingId, trainingId),
+        with: {
+          user: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          training: true,
+        },
+      });
+      return feedback;
+    } catch (error) {
+      console.error("Error fetching training feedback:", error);
+      throw error;
+    }
+  }
+  
+  async submitTrainingFeedback(data: {
+    trainingId: number;
+    userId: number;
+    isEffective: boolean;
+    trainingAidsGood: boolean;
+    durationSufficient: boolean;
+    contentExplained: boolean;
+    conductedProperly: boolean;
+    learningEnvironment: boolean;
+    helpfulForWork: boolean;
+    additionalTopics?: string;
+    keyLearnings?: string;
+    specialObservations?: string;
+  }): Promise<any> {
+    const feedbackId = ++this.currentFeedbackId;
+    const feedback = {
+      id: feedbackId,
+      ...data,
+    };
+    
+    this.trainingFeedback.set(feedbackId, feedback);
+    
+    // Mark attendance as present
+    const attendanceId = ++this.currentTrainingAttendanceId;
+    this.trainingAttendees.set(attendanceId, {
+      id: attendanceId,
+      trainingId: data.trainingId,
+      userId: data.userId,
+      attendanceStatus: 'present',
+    });
+    
+    return feedback;
+  }
+  
+  async markTrainingAttendance(trainingId: number, userId: number): Promise<any> {
+    const attendanceId = ++this.currentTrainingAttendanceId;
+    const attendance = {
+      id: attendanceId,
+      trainingId,
+      userId,
+      attendanceStatus: 'present',
+    };
+    
+    this.trainingAttendees.set(attendanceId, attendance);
+    return attendance;
   }
 }
 
@@ -1287,6 +1402,110 @@ export class DatabaseStorage implements IStorage {
       return assessmentsWithDetails;
     } catch (error) {
       console.error("Error in getTrainingAssessments:", error);
+      throw error;
+    }
+  }
+
+  // Training Feedback Methods
+  async getTrainingFeedback(trainingId: number): Promise<any[]> {
+    try {
+      const feedback = await this.db.query.trainingFeedback.findMany({
+        where: eq(trainingFeedback.trainingId, trainingId),
+        with: {
+          user: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          training: true,
+        },
+      });
+      return feedback;
+    } catch (error) {
+      console.error("Error fetching training feedback:", error);
+      throw error;
+    }
+  }
+  
+  async submitTrainingFeedback(data: {
+    trainingId: number;
+    userId: number;
+    isEffective: boolean;
+    trainingAidsGood: boolean;
+    durationSufficient: boolean;
+    contentExplained: boolean;
+    conductedProperly: boolean;
+    learningEnvironment: boolean;
+    helpfulForWork: boolean;
+    additionalTopics?: string;
+    keyLearnings?: string;
+    specialObservations?: string;
+  }): Promise<any> {
+    try {
+      // Start a transaction
+      const result = await this.db.transaction(async (tx) => {
+        // Create the feedback
+        const [feedback] = await tx
+          .insert(trainingFeedback)
+          .values({
+            trainingId: data.trainingId,
+            userId: data.userId,
+            isEffective: data.isEffective,
+            trainingAidsGood: data.trainingAidsGood,
+            durationSufficient: data.durationSufficient,
+            contentExplained: data.contentExplained,
+            conductedProperly: data.conductedProperly,
+            learningEnvironment: data.learningEnvironment,
+            helpfulForWork: data.helpfulForWork,
+            additionalTopics: data.additionalTopics,
+            keyLearnings: data.keyLearnings,
+            specialObservations: data.specialObservations,
+          })
+          .returning();
+        
+        // Mark attendance as present
+        await tx
+          .insert(trainingAttendees)
+          .values({
+            trainingId: data.trainingId,
+            userId: data.userId,
+            attendanceStatus: 'present',
+          })
+          .onConflictDoUpdate({
+            target: [trainingAttendees.trainingId, trainingAttendees.userId],
+            set: { attendanceStatus: 'present' },
+          });
+        
+        return feedback;
+      });
+
+      return result;
+    } catch (error) {
+      console.error("Error submitting training feedback:", error);
+      throw error;
+    }
+  }
+  
+  async markTrainingAttendance(trainingId: number, userId: number): Promise<any> {
+    try {
+      const result = await this.db
+        .insert(trainingAttendees)
+        .values({
+          trainingId,
+          userId,
+          attendanceStatus: 'present',
+        })
+        .onConflictDoUpdate({
+          target: [trainingAttendees.trainingId, trainingAttendees.userId],
+          set: { attendanceStatus: 'present' },
+        })
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error marking attendance:", error);
       throw error;
     }
   }

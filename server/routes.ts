@@ -748,6 +748,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Training Feedback routes
+  app.get("/api/training-feedback/:trainingId", requireAuth, async (req, res) => {
+    try {
+      const trainingId = parseInt(req.params.trainingId);
+      const feedback = await storage.getTrainingFeedback(trainingId);
+      res.json(feedback);
+    } catch (error) {
+      console.error("Error fetching training feedback:", error);
+      res.status(500).json({ error: "Failed to fetch training feedback" });
+    }
+  });
+
+  // Submit training feedback and mark attendance
+  app.post("/api/training-feedback", requireAuth, async (req, res) => {
+    try {
+      console.log('Received feedback submission request:', req.body);
+      const {
+        trainingId,
+        userId,
+        isEffective,
+        trainingAidsGood,
+        durationSufficient,
+        contentExplained,
+        conductedProperly,
+        learningEnvironment,
+        helpfulForWork,
+        additionalTopics,
+        keyLearnings,
+        specialObservations,
+      } = req.body;
+
+      // Start a transaction
+      const result = await storage.submitTrainingFeedback({
+        trainingId,
+        userId,
+        isEffective,
+        trainingAidsGood,
+        durationSufficient,
+        contentExplained,
+        conductedProperly,
+        learningEnvironment,
+        helpfulForWork,
+        additionalTopics,
+        keyLearnings,
+        specialObservations,
+      });
+
+      console.log('Transaction completed successfully:', result);
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error submitting training feedback:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to submit training feedback" });
+    }
+  });
+
+  // Mark training attendance
+  app.post("/api/training-attendance/mark-present", requireAuth, async (req, res) => {
+    try {
+      console.log('Received attendance marking request:', req.body);
+      const { trainingId, userId } = req.body;
+
+      const result = await storage.markTrainingAttendance(trainingId, userId);
+      console.log('Attendance marked successfully:', result);
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error marking attendance:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to mark attendance" });
+    }
+  });
+
   // Create HTTP server
   const httpServer = createServer(app);
 

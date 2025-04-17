@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "../db";
 import { trainingAssessments, trainingAssessmentScores, trainingFeedback, trainingAttendees } from "../schema";
 import { eq } from "drizzle-orm";
+import { storage } from "../storage";
 
 const router = Router();
 
@@ -79,12 +80,7 @@ router.post("/training-assessments", async (req, res) => {
 router.get("/training-feedback/:trainingId", async (req, res) => {
   try {
     const { trainingId } = req.params;
-    const feedback = await db.query.trainingFeedback.findMany({
-      where: eq(trainingFeedback.trainingId, parseInt(trainingId)),
-      with: {
-        user: true,
-      },
-    });
+    const feedback = await storage.getTrainingFeedback(parseInt(trainingId));
     res.json(feedback);
   } catch (error) {
     console.error("Error fetching training feedback:", error);

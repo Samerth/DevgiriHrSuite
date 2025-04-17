@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { EmployeeCombobox } from "@/components/common/EmployeeCombobox";
 import { apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const feedbackFormSchema = z.object({
   userId: z.string().min(1, "Employee is required"),
@@ -140,7 +141,20 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
                   <FormItem>
                     <FormLabel>Was the course effective?</FormLabel>
                     <FormControl>
-                      <input type="checkbox" checked={field.value} onChange={e => field.onChange(e.target.checked)} />
+                      <RadioGroup
+                        onValueChange={(value) => field.onChange(value === "true")}
+                        defaultValue={field.value ? "true" : "false"}
+                        className="flex space-x-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="true" id="isEffective-yes" />
+                          <label htmlFor="isEffective-yes">Yes</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="false" id="isEffective-no" />
+                          <label htmlFor="isEffective-no">No</label>
+                        </div>
+                      </RadioGroup>
                     </FormControl>
                   </FormItem>
                 )}
@@ -152,7 +166,20 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
                   <FormItem>
                     <FormLabel>Were the training aids good?</FormLabel>
                     <FormControl>
-                      <input type="checkbox" checked={field.value} onChange={e => field.onChange(e.target.checked)} />
+                      <RadioGroup
+                        onValueChange={(value) => field.onChange(value === "true")}
+                        defaultValue={field.value ? "true" : "false"}
+                        className="flex space-x-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="true" id="trainingAidsGood-yes" />
+                          <label htmlFor="trainingAidsGood-yes">Yes</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="false" id="trainingAidsGood-no" />
+                          <label htmlFor="trainingAidsGood-no">No</label>
+                        </div>
+                      </RadioGroup>
                     </FormControl>
                   </FormItem>
                 )}
@@ -164,7 +191,20 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
                   <FormItem>
                     <FormLabel>Was the duration of the training sufficient?</FormLabel>
                     <FormControl>
-                      <input type="checkbox" checked={field.value} onChange={e => field.onChange(e.target.checked)} />
+                      <RadioGroup
+                        onValueChange={(value) => field.onChange(value === "true")}
+                        defaultValue={field.value ? "true" : "false"}
+                        className="flex space-x-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="true" id="durationSufficient-yes" />
+                          <label htmlFor="durationSufficient-yes">Yes</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="false" id="durationSufficient-no" />
+                          <label htmlFor="durationSufficient-no">No</label>
+                        </div>
+                      </RadioGroup>
                     </FormControl>
                   </FormItem>
                 )}
@@ -176,7 +216,20 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
                   <FormItem>
                     <FormLabel>Were the course contents explained properly?</FormLabel>
                     <FormControl>
-                      <input type="checkbox" checked={field.value} onChange={e => field.onChange(e.target.checked)} />
+                      <RadioGroup
+                        onValueChange={(value) => field.onChange(value === "true")}
+                        defaultValue={field.value ? "true" : "false"}
+                        className="flex space-x-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="true" id="contentExplained-yes" />
+                          <label htmlFor="contentExplained-yes">Yes</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="false" id="contentExplained-no" />
+                          <label htmlFor="contentExplained-no">No</label>
+                        </div>
+                      </RadioGroup>
                     </FormControl>
                   </FormItem>
                 )}
@@ -188,7 +241,20 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
                   <FormItem>
                     <FormLabel>Was the training conducted properly?</FormLabel>
                     <FormControl>
-                      <input type="checkbox" checked={field.value} onChange={e => field.onChange(e.target.checked)} />
+                      <RadioGroup
+                        onValueChange={(value) => field.onChange(value === "true")}
+                        defaultValue={field.value ? "true" : "false"}
+                        className="flex space-x-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="true" id="conductedProperly-yes" />
+                          <label htmlFor="conductedProperly-yes">Yes</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="false" id="conductedProperly-no" />
+                          <label htmlFor="conductedProperly-no">No</label>
+                        </div>
+                      </RadioGroup>
                     </FormControl>
                   </FormItem>
                 )}
@@ -200,7 +266,20 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
                   <FormItem>
                     <FormLabel>Did the trainer create and maintain environment for learning?</FormLabel>
                     <FormControl>
-                      <input type="checkbox" checked={field.value} onChange={e => field.onChange(e.target.checked)} />
+                      <RadioGroup
+                        onValueChange={(value) => field.onChange(value === "true")}
+                        defaultValue={field.value ? "true" : "false"}
+                        className="flex space-x-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="true" id="learningEnvironment-yes" />
+                          <label htmlFor="learningEnvironment-yes">Yes</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="false" id="learningEnvironment-no" />
+                          <label htmlFor="learningEnvironment-no">No</label>
+                        </div>
+                      </RadioGroup>
                     </FormControl>
                   </FormItem>
                 )}
@@ -212,7 +291,20 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
                   <FormItem>
                     <FormLabel>Was this training helpful to enhance your work ability?</FormLabel>
                     <FormControl>
-                      <input type="checkbox" checked={field.value} onChange={e => field.onChange(e.target.checked)} />
+                      <RadioGroup
+                        onValueChange={(value) => field.onChange(value === "true")}
+                        defaultValue={field.value ? "true" : "false"}
+                        className="flex space-x-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="true" id="helpfulForWork-yes" />
+                          <label htmlFor="helpfulForWork-yes">Yes</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="false" id="helpfulForWork-no" />
+                          <label htmlFor="helpfulForWork-no">No</label>
+                        </div>
+                      </RadioGroup>
                     </FormControl>
                   </FormItem>
                 )}

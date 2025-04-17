@@ -1,6 +1,6 @@
 import { eq, and, desc, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { users, attendance, leaveRequests, trainingRecords, trainingAssessments, trainingAssessmentParameters, trainingAssessmentScores } from "./db/schema";
+import { users, attendance, leaveRequests, trainingRecords, trainingAssessments, trainingAssessmentParameters, trainingAssessmentScores, trainingFeedback } from "./db/schema";
 import { 
   type User,
   type InsertUser,
@@ -1154,6 +1154,10 @@ export class DatabaseStorage implements IStorage {
         // Delete all assessments for this training
         await tx.delete(trainingAssessments)
           .where(eq(trainingAssessments.trainingId, id));
+
+        // Delete all feedback for this training
+        await tx.delete(trainingFeedback)
+          .where(eq(trainingFeedback.trainingId, id));
 
         // Finally delete the training record
         await tx.delete(trainingRecords)

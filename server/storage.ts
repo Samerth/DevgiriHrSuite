@@ -371,23 +371,17 @@ export class MemStorage implements IStorage {
   }
 
   // Leave Request Methods
-  async createLeaveRequest(
-    leaveRequestData: InsertLeaveRequest,
-  ): Promise<LeaveRequest> {
-    const id = this.currentLeaveRequestId++;
-    const requestDate = new Date();
-    const leaveRequest: LeaveRequest = {
-      ...leaveRequestData,
-      id,
-      status: "pending",
-      requestDate,
-      responseDate: null,
-      responseNotes: null,
-      approvedById: null,
-      reason: leaveRequestData.reason || null,
+  async createLeaveRequest(data: { userId: number; startDate: string; endDate: string; type: string; reason?: string }) {
+    // Create a new leave request with the provided data
+    const newRequest = {
+      ...data,
+      status: "pending" as const,
+      requestDate: new Date(),
     };
-    this.leaveRequests.set(id, leaveRequest);
-    return leaveRequest;
+
+    // Insert the leave request into the database
+    const result = await this.db.insert(leaveRequests).values(newRequest).returning();
+    return result[0];
   }
 
   async getLeaveRequest(id: number): Promise<LeaveRequest | undefined> {
@@ -985,17 +979,16 @@ export class DatabaseStorage implements IStorage {
       .where(between(attendance.date, today, tomorrow));
   }
 
-  async createLeaveRequest(
-    leaveRequestData: InsertLeaveRequest,
-  ): Promise<LeaveRequest> {
-    const result = await this.db
-      .insert(leaveRequests)
-      .values({
-        ...leaveRequestData,
-        status: "pending",
-        requestDate: new Date(),
-      })
-      .returning();
+  async createLeaveRequest(data: { userId: number; startDate: string; endDate: string; type: string; reason?: string }) {
+    // Create a new leave request with the provided data
+    const newRequest = {
+      ...data,
+      status: "pending" as const,
+      requestDate: new Date(),
+    };
+
+    // Insert the leave request into the database
+    const result = await this.db.insert(leaveRequests).values(newRequest).returning();
     return result[0];
   }
 

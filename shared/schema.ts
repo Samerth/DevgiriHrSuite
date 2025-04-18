@@ -192,13 +192,17 @@ export const insertAttendanceSchema = createInsertSchema(attendance).omit({
   id: true
 });
 
-export const insertLeaveRequestSchema = createInsertSchema(leaveRequests).omit({
+export const insertLeaveRequestSchema = createInsertSchema(leaveRequests, {
+  startDate: z.string(),
+  endDate: z.string(),
+}).omit({
   id: true,
   requestDate: true,
   responseDate: true,
   approvedById: true,
   status: true
 });
+
 
 // Select Types
 export type User = typeof users.$inferSelect;

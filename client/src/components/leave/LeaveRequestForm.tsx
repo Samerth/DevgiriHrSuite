@@ -12,7 +12,6 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { 
@@ -27,7 +26,6 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { insertLeaveRequestSchema } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -39,10 +37,16 @@ interface LeaveRequestFormProps {
   onSubmitSuccess: () => void;
 }
 
-const formSchema = insertLeaveRequestSchema.refine(
+// Define a simple form schema
+const formSchema = z.object({
+  startDate: z.date(),
+  endDate: z.date(),
+  type: z.enum(["annual", "sick", "personal", "maternity", "paternity", "bereavement", "unpaid"]),
+  reason: z.string().optional(),
+}).refine(
   (data) => {
     // Ensure end date is not before start date
-    return !isBefore(new Date(data.endDate), new Date(data.startDate));
+    return !isBefore(data.endDate, data.startDate);
   },
   {
     message: "End date cannot be before start date",
@@ -53,14 +57,14 @@ const formSchema = insertLeaveRequestSchema.refine(
 type FormValues = z.infer<typeof formSchema>;
 
 export default function LeaveRequestForm({ onSubmitSuccess }: LeaveRequestFormProps) {
-  const { user } = useAuth();
+  const { authState } = useAuth();
+  const user = authState.user;
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      userId: user?.id,
       startDate: new Date(),
       endDate: addDays(new Date(), 1),
       type: "annual",
@@ -81,10 +85,18 @@ export default function LeaveRequestForm({ onSubmitSuccess }: LeaveRequestFormPr
     setIsSubmitting(true);
     
     try {
-      await apiRequest('POST', '/api/leave-requests', {
-        ...data,
+      // Format dates as YYYY-MM-DD strings
+      const formattedData = {
         userId: user.id,
-      });
+        startDate: format(data.startDate, 'yyyy-MM-dd'),
+        endDate: format(data.endDate, 'yyyy-MM-dd'),
+        type: data.type,
+        reason: data.reason || "",
+      };
+      
+      console.log("Submitting leave request with data:", formattedData);
+      
+      await apiRequest('POST', '/api/leave-requests', formattedData);
       
       queryClient.invalidateQueries({ queryKey: ['/api/leave-requests/user', user.id] });
       queryClient.invalidateQueries({ queryKey: ['/api/leave-requests/pending'] });
@@ -96,6 +108,7 @@ export default function LeaveRequestForm({ onSubmitSuccess }: LeaveRequestFormPr
       
       onSubmitSuccess();
     } catch (error) {
+      console.error("Error submitting leave request:", error);
       toast({
         variant: "destructive",
         title: "Submission failed",
@@ -237,13 +250,13 @@ export default function LeaveRequestForm({ onSubmitSuccess }: LeaveRequestFormPr
             <p className="font-medium text-neutral-700">
               Leave Duration: {
                 differenceInDays(
-                  new Date(form.watch("endDate")), 
-                  new Date(form.watch("startDate"))
+                  form.watch("endDate"), 
+                  form.watch("startDate")
                 ) + 1
               } days
             </p>
             <p className="text-neutral-500 text-xs">
-              From {form.watch("startDate") && format(new Date(form.watch("startDate")), "EEEE, MMMM d, yyyy")} to {form.watch("endDate") && format(new Date(form.watch("endDate")), "EEEE, MMMM d, yyyy")}
+              From {form.watch("startDate") && format(form.watch("startDate"), "EEEE, MMMM d, yyyy")} to {form.watch("endDate") && format(form.watch("endDate"), "EEEE, MMMM d, yyyy")}
             </p>
           </div>
 
@@ -258,7 +271,10 @@ export default function LeaveRequestForm({ onSubmitSuccess }: LeaveRequestFormPr
                   <Textarea
                     placeholder="Please provide details for your leave request"
                     className="resize-none"
-                    {...field}
+                    value={field.value || ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    name={field.name}
                   />
                 </FormControl>
                 <FormDescription>

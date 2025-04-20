@@ -1,8 +1,9 @@
-import { Switch, Route } from "wouter";
-import { useLocation } from "wouter";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import { useEffect } from "react";
 
 // Import the actual page components
 import Dashboard from "@/pages/Dashboard";
@@ -12,10 +13,39 @@ import Leaves from "@/pages/Leaves";
 import LeaveManagement from "@/pages/LeaveManagement";
 import NotFound from "@/pages/not-found";
 import { default as Training } from "@/pages/Training";
+import Login from "@/pages/Login";
+
+// Protected Route component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { authState } = useAuth();
+  const [location, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!authState.isAuthenticated && location !== '/login') {
+      setLocation('/login');
+    }
+  }, [authState.isAuthenticated, location, setLocation]);
+
+  if (!authState.isAuthenticated) {
+    return null;
+  }
+
+  return <>{children}</>;
+};
 
 // Layout component
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const [location] = useLocation();
+  const { authState, logout } = useAuth();
+
+  // Don't show layout for login page
+  if (location === '/login') {
+    return <>{children}</>;
+  }
+
+  if (!authState.isAuthenticated) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -65,6 +95,26 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               Training
             </a>
           </nav>
+          <div className="flex-shrink-0 flex border-t p-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <span className="inline-block h-8 w-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center">
+                  {authState.user?.firstName?.[0]}{authState.user?.lastName?.[0]}
+                </span>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-700">
+                  {authState.user?.firstName} {authState.user?.lastName}
+                </p>
+                <button
+                  onClick={() => logout()}
+                  className="text-xs font-medium text-gray-500 hover:text-gray-700"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -102,9 +152,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <span className="text-xl">📅</span>
             <span className="text-xs">Leaves</span>
           </a>
+          <a href="/training" className={`flex flex-col items-center px-3 py-1 ${location === '/training' ? 'text-primary' : 'text-gray-500'}`}>
+            <span className="text-xl">📚</span>
+            <span className="text-xs">Training</span>
+          </a>
         </div>
       </div>
-      <Toaster />
     </div>
   );
 };
@@ -112,18 +165,50 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Layout>
-        <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/dashboard" component={Dashboard} />
-          <Route path="/employees" component={Employees} />
-          <Route path="/attendance" component={Attendance} />
-          <Route path="/leaves" component={Leaves} />
-          <Route path="/leave-management" component={LeaveManagement} />
-          <Route path="/training" component={Training} />
-          <Route component={NotFound} />
-        </Switch>
-      </Layout>
+      <AuthProvider>
+        <Layout>
+          <Switch>
+            <Route path="/login" component={Login} />
+            <Route path="/">
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/dashboard">
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/employees">
+              <ProtectedRoute>
+                <Employees />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/attendance">
+              <ProtectedRoute>
+                <Attendance />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/leaves">
+              <ProtectedRoute>
+                <Leaves />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/leave-management">
+              <ProtectedRoute>
+                <LeaveManagement />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/training">
+              <ProtectedRoute>
+                <Training />
+              </ProtectedRoute>
+            </Route>
+            <Route component={NotFound} />
+          </Switch>
+        </Layout>
+        <Toaster />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

@@ -44,18 +44,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Configure passport
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
-      try {
-        const user = await storage.getUserByUsername(username);
-        if (!user) return done(null, false, { message: "Incorrect username" });
-        if (user.password !== password) {
-          return done(null, false, { message: "Incorrect password" });
+    new LocalStrategy(
+      {
+        usernameField: "email",
+        passwordField: "password",
+      },
+      async (email, password, done) => {
+        try {
+          const user = await storage.getUserByEmail(email);
+          if (!user) return done(null, false, { message: "Incorrect email" });
+          if (user.password !== password) {
+            return done(null, false, { message: "Incorrect password" });
+          }
+          return done(null, user);
+        } catch (error) {
+          return done(error);
         }
-        return done(null, user);
-      } catch (error) {
-        return done(error);
       }
-    })
+    )
   );
 
   passport.serializeUser((user: any, done) => {
@@ -71,20 +77,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Auth middleware - TEMPORARILY DISABLED FOR TESTING
+  // Auth middleware
   const requireAuth = (req: Request, res: Response, next: any) => {
-    // Always allow access for testing
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     next();
   };
 
   const requireAdmin = (req: Request, res: Response, next: any) => {
-    // Always allow access for testing
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const user = req.user as any;
+    if (user.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
     next();
   };
 
   // Auth routes
-  app.post("/api/auth/login", passport.authenticate("local"), (req, res) => {
-    res.json({ user: req.user });
+  app.post("/api/auth/login", (req: Request, res: Response, next: any) => {
+    passport.authenticate("local", (err: Error | null, user: any, info: { message: string }) => {
+      if (err) return next(err);
+      if (!user) {
+        return res.status(401).json({ message: info.message });
+      }
+      req.logIn(user, (err: Error | null) => {
+        if (err) return next(err);
+        return res.json({ user });
+      });
+    })(req, res, next);
   });
 
   app.post("/api/auth/logout", (req, res) => {
@@ -586,13 +609,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { status, notes } = schema.parse(req.body);
       
-      // Use a default admin ID for testing
-      const approverUserId = 1; // Admin ID for testing
+      // For now, use a default admin ID since authentication is not set up
+      const approverId = 1; // Default admin ID
       
       const leaveRequest = await storage.respondToLeaveRequest(
         id, 
         status, 
-        approverUserId,
+        approverId,
         notes
       );
       

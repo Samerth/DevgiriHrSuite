@@ -1306,6 +1306,9 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
+      // Ensure scope_of_training is always an array
+      record.scope_of_training = Array.isArray(record.scope_of_training) ? record.scope_of_training : [];
+
       return record;
     } catch (error) {
       console.error('Error in getTrainingRecord:', error);

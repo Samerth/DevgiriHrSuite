@@ -38,7 +38,7 @@ interface TrainingRecord {
   assessmentScore?: number;
   start_time?: string;
   end_time?: string;
-  scopeOfTraining?: string[];
+  scope_of_training?: string[];
   trainer?: {
     firstName: string;
     lastName: string;
@@ -236,7 +236,7 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
                 <CardContent className="pt-6">
                   <h3 className="font-semibold mb-4">Training Scope</h3>
                   <div className="space-y-2">
-                    {training.scopeOfTraining?.map((scope: string) => (
+                    {training.scope_of_training?.map((scope: string) => (
                       <div key={scope} className="flex items-center">
                         <Badge variant="secondary" className="mr-2">✓</Badge>
                         <span>{scope}</span>

@@ -11,7 +11,11 @@ CREATE TABLE IF NOT EXISTS training_records (
   status TEXT DEFAULT 'pending',
   assessment_score INTEGER,
   effectiveness TEXT,
-  notes TEXT
+  notes TEXT,
+  start_time TIME,
+  end_time TIME,
+  scope_of_training TEXT[],
+  attendees TEXT[]
 );
 
 CREATE TABLE IF NOT EXISTS training_feedback (

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, integer, date } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean, integer, date, time } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
@@ -48,6 +48,7 @@ export const trainingRecords = pgTable("training_records", {
   trainingTitle: text("training_title").notNull(),
   trainingType: text("training_type").notNull(),
   date: date("date").notNull(),
+  end_date: date("end_date").notNull(),
   trainerId: integer("trainer_id").references(() => users.id),
   department: text("department"),
   feedbackScore: integer("feedback_score"),
@@ -59,6 +60,10 @@ export const trainingRecords = pgTable("training_records", {
   objectives: text("objectives"),
   materials: text("materials"),
   evaluation: text("evaluation"),
+  start_time: time("start_time"),
+  end_time: time("end_time"),
+  scope_of_training: text("scope_of_training").array(),
+  attendees: text("attendees").array()
 });
 
 // Training Assessment Parameters Table

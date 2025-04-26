@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { users, attendance, leaveRequests, trainingRecords, trainingAssessments, trainingAssessmentParameters, trainingAssessmentScores, trainingFeedback, trainingAttendees } from "./db/schema";
 import { 
@@ -1209,6 +1209,7 @@ export class DatabaseStorage implements IStorage {
         trainingTitle: data.trainingTitle,
         trainingType: data.trainingType || 'internal',
         date: data.date,
+        end_date: data.end_date,
         trainerId: data.trainerId ? parseInt(data.trainerId) : null,
         department: data.department,
         status: 'pending',
@@ -1219,7 +1220,11 @@ export class DatabaseStorage implements IStorage {
         venue: data.venue || null,
         objectives: data.objectives || null,
         materials: data.materials || null,
-        evaluation: data.evaluation || null
+        evaluation: data.evaluation || null,
+        start_time: data.start_time || null,
+        end_time: data.end_time || null,
+        scope_of_training: data.scope_of_training || [],
+        attendees: data.attendees || []
       }).returning();
 
       console.log('Created training record:', result[0]);
@@ -1247,7 +1252,61 @@ export class DatabaseStorage implements IStorage {
         .from(trainingRecords)
         .where(eq(trainingRecords.id, id))
         .limit(1);
-      return records[0];
+
+      if (!records || records.length === 0) {
+        return null;
+      }
+
+      const record = records[0];
+
+      // Get attendee details if attendees array exists and is not empty
+      if (record.attendees && Array.isArray(record.attendees) && record.attendees.length > 0) {
+        try {
+          const attendeeIds = record.attendees.map((id: string) => parseInt(id)).filter(id => !isNaN(id));
+          if (attendeeIds.length > 0) {
+            const attendees = await this.db
+              .select({
+                id: users.id,
+                firstName: users.firstName,
+                lastName: users.lastName,
+                employeeId: users.employeeId,
+                department: users.department
+              })
+              .from(users)
+              .where(inArray(users.id, attendeeIds));
+
+            record.attendees = attendees;
+          }
+        } catch (error) {
+          console.error('Error fetching attendee details:', error);
+          record.attendees = [];
+        }
+      } else {
+        record.attendees = [];
+      }
+
+      // Get trainer details if trainerId exists
+      if (record.trainerId) {
+        try {
+          const trainer = await this.db
+            .select({
+              id: users.id,
+              firstName: users.firstName,
+              lastName: users.lastName
+            })
+            .from(users)
+            .where(eq(users.id, record.trainerId))
+            .limit(1);
+
+          if (trainer && trainer.length > 0) {
+            record.trainer = trainer[0];
+          }
+        } catch (error) {
+          console.error('Error fetching trainer details:', error);
+        }
+      }
+
+      return record;
     } catch (error) {
       console.error('Error in getTrainingRecord:', error);
       throw error;

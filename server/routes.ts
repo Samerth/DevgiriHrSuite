@@ -684,6 +684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trainingTitle: z.string(),
         trainingType: z.string(),
         date: z.string(),
+        end_date: z.string(),
         department: z.string().optional(),
         trainerId: z.number().nullable(),
         notes: z.string().optional(),
@@ -691,7 +692,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         objectives: z.string().optional(),
         materials: z.string().optional(),
         evaluation: z.string().optional(),
-        effectiveness: z.string().optional()
+        effectiveness: z.string().optional(),
+        start_time: z.string().optional(),
+        end_time: z.string().optional(),
+        scope_of_training: z.array(z.string()).optional(),
+        attendees: z.array(z.string()).optional()
       });
 
       const validatedData = schema.parse(req.body);

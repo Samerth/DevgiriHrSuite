@@ -109,6 +109,13 @@ export const trainingRecords = pgTable("training_records", {
   assessmentScore: integer("assessment_score"),
   effectiveness: text("effectiveness"),
   notes: text("notes"),
+  venue: text("venue"),
+  objectives: text("objectives"),
+  materials: text("materials"),
+  evaluation: text("evaluation"),
+  start_time: time("start_time"),
+  end_time: time("end_time"),
+  scope_of_training: text("scope_of_training").array(),
   attendees: text("attendees").array(),
 });
 

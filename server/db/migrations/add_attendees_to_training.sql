@@ -1,2 +1,1 @@
-
-ALTER TABLE training_records ADD COLUMN attendees text[] DEFAULT '{}';
+ALTER TABLE training_records ADD COLUMN IF NOT EXISTS attendees text[] DEFAULT '{}';

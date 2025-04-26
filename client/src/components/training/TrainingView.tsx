@@ -24,6 +24,7 @@ interface TrainingRecord {
   trainingTitle: string;
   trainingType: string;
   date: string;
+  end_date: string;
   department: string;
   status: string;
   trainerId: number | null;
@@ -35,6 +36,14 @@ interface TrainingRecord {
   notes?: string;
   attendees?: number[];
   assessmentScore?: number;
+  start_time?: string;
+  end_time?: string;
+  scopeOfTraining?: string[];
+  trainer?: {
+    firstName: string;
+    lastName: string;
+  } | null;
+  guestSpeaker?: string;
 }
 
 interface Assessment {
@@ -187,19 +196,31 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
             <div className="grid gap-6">
               <Card>
                 <CardContent className="pt-6">
-                  <h3 className="font-semibold mb-4">Basic Information</h3>
+                  <h3 className="font-semibold mb-4">Training Details</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Training Type</p>
-                      <p className="font-medium">{training.trainingType}</p>
+                      <p className="text-sm text-muted-foreground">Training Title</p>
+                      <p className="font-medium">{training.trainingTitle}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Date</p>
+                      <p className="text-sm text-muted-foreground">Start Date</p>
                       <p className="font-medium">{new Date(training.date).toLocaleDateString()}</p>
                     </div>
                     <div>
+                      <p className="text-sm text-muted-foreground">End Date</p>
+                      <p className="font-medium">{new Date(training.end_date).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Start Time</p>
+                      <p className="font-medium">{training.start_time}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">End Time</p>
+                      <p className="font-medium">{training.end_time}</p>
+                    </div>
+                    <div>
                       <p className="text-sm text-muted-foreground">Department</p>
-                      <p className="font-medium">{training.department}</p>
+                      <p className="font-medium">{training.department || 'Not specified'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Status</p>
@@ -213,27 +234,29 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
 
               <Card>
                 <CardContent className="pt-6">
-                  <h3 className="font-semibold mb-4">Details</h3>
+                  <h3 className="font-semibold mb-4">Training Scope</h3>
+                  <div className="space-y-2">
+                    {training.scopeOfTraining?.map((scope: string) => (
+                      <div key={scope} className="flex items-center">
+                        <Badge variant="secondary" className="mr-2">✓</Badge>
+                        <span>{scope}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold mb-4">Additional Information</h3>
                   <div className="space-y-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Venue</p>
-                      <p className="font-medium">{training.venue || 'Not specified'}</p>
+                      <p className="text-sm text-muted-foreground">Trainer</p>
+                      <p className="font-medium">{training.trainer ? `${training.trainer.firstName} ${training.trainer.lastName}` : 'Not specified'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Objectives</p>
-                      <p className="font-medium">{training.objectives || 'No objectives specified'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Materials</p>
-                      <p className="font-medium">{training.materials || 'No materials specified'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Evaluation Method</p>
-                      <p className="font-medium">{training.evaluation || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Effectiveness</p>
-                      <p className="font-medium">{training.effectiveness || 'Not evaluated'}</p>
+                      <p className="text-sm text-muted-foreground">Guest Speakers / Trainers</p>
+                      <p className="font-medium">{training.guestSpeaker || 'None'}</p>
                     </div>
                     {training.notes && (
                       <div>
@@ -241,6 +264,34 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
                         <p className="font-medium">{training.notes}</p>
                       </div>
                     )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold mb-4">Attendees</h3>
+                  <div className="border rounded-md">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="px-4 py-2 text-left">S.No.</th>
+                          <th className="px-4 py-2 text-left">Name</th>
+                          <th className="px-4 py-2 text-left">Emp Code</th>
+                          <th className="px-4 py-2 text-left">Department</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {training.attendees?.map((attendee: any, index: number) => (
+                          <tr key={attendee.id} className="border-b">
+                            <td className="px-4 py-2">{index + 1}</td>
+                            <td className="px-4 py-2">{attendee.firstName} {attendee.lastName}</td>
+                            <td className="px-4 py-2">{attendee.employeeCode}</td>
+                            <td className="px-4 py-2">{attendee.department}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </CardContent>
               </Card>

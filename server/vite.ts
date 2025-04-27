@@ -23,7 +23,7 @@ export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true,
+    allowedHosts: true as true | string[] | undefined,
   };
 
   const vite = await createViteServer({
@@ -41,8 +41,16 @@ export async function setupVite(app: Express, server: Server) {
   });
 
   app.use(vite.middlewares);
-  app.use("*", async (req, res, next) => {
+  
+  // Add a catch-all route for client-side routing
+  app.get("*", async (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith("/api/")) {
+      return next();
+    }
+    
     const url = req.originalUrl;
+    console.log("Handling client-side route:", url);
 
     try {
       const clientTemplate = path.resolve(

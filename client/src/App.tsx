@@ -14,6 +14,7 @@ import LeaveManagement from "@/pages/LeaveManagement";
 import NotFound from "@/pages/not-found";
 import { default as Training } from "@/pages/Training";
 import Login from "@/pages/Login";
+import TrainingFeedback from "@/pages/TrainingFeedback";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -204,6 +205,7 @@ function App() {
                 <Training />
               </ProtectedRoute>
             </Route>
+            <Route path="/training-feedback/:id" component={TrainingFeedback} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { TrainingView } from "@/components/training/TrainingView";
+import { TrainingQRCode } from "@/components/training/TrainingQRCode";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrainingRecord } from "@/components/training/TrainingRecord";
@@ -29,6 +30,7 @@ export default function Training() {
   const { toast } = useToast();
   const [showNewTrainingForm, setShowNewTrainingForm] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
+  const [showQRDialog, setShowQRDialog] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -119,6 +121,16 @@ export default function Training() {
                         View
                       </Button>
                       <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedId(record.id);
+                          setShowQRDialog(true);
+                        }}
+                      >
+                        QR Code
+                      </Button>
+                      <Button
                         variant="destructive"
                         size="sm"
                         onClick={async () => {
@@ -152,11 +164,18 @@ export default function Training() {
       </Card>
 
       {selectedId && (
-        <TrainingView
-          id={selectedId}
-          open={showViewDialog}
-          onOpenChange={setShowViewDialog}
-        />
+        <>
+          <TrainingView
+            id={selectedId}
+            open={showViewDialog}
+            onOpenChange={setShowViewDialog}
+          />
+          <TrainingQRCode
+            trainingId={selectedId}
+            open={showQRDialog}
+            onOpenChange={setShowQRDialog}
+          />
+        </>
       )}
     </div>
   );

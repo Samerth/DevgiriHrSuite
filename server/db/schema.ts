@@ -63,7 +63,8 @@ export const trainingRecords = pgTable("training_records", {
   start_time: time("start_time"),
   end_time: time("end_time"),
   scope_of_training: text("scope_of_training").array(),
-  attendees: text("attendees").array()
+  attendees: text("attendees").array(),
+  qr_code: text("qr_code")
 });
 
 // Training Assessment Parameters Table

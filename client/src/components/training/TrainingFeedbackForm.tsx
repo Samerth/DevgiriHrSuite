@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { EmployeeCombobox } from "@/components/common/EmployeeCombobox";
+import { AttendeeCombobox } from "@/components/common/AttendeeCombobox";
 import { apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -93,12 +93,14 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
 
       if (!attendanceResponse.ok) {
         const errorText = await attendanceResponse.text();
-        throw new Error(`Failed to mark attendance: ${errorText}`);
+        console.warn(`Failed to mark attendance: ${errorText}`);
+        // Don't throw error here, just log it as a warning
+        // The feedback was submitted successfully, so we can still show success
+      } else {
+        console.log('Attendance marked successfully');
       }
 
-      console.log('Attendance marked successfully');
-
-      toast({ title: "Success", description: "Feedback submitted and attendance marked." });
+      toast({ title: "Success", description: "Feedback submitted successfully." });
       onSuccess?.();
     } catch (error) {
       console.error('Error in feedback submission:', error);
@@ -127,7 +129,11 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
                 <FormItem>
                   <FormLabel>Employee</FormLabel>
                   <FormControl>
-                    <EmployeeCombobox value={field.value} onValueChange={field.onChange} />
+                    <AttendeeCombobox 
+                      trainingId={trainingId}
+                      value={field.value} 
+                      onValueChange={field.onChange} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

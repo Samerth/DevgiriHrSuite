@@ -1,8 +1,7 @@
 import { Router } from "express";
-import { db } from "../db";
-import { trainingAssessments, trainingAssessmentScores, trainingFeedback, trainingAttendees } from "../schema";
-import { eq } from "drizzle-orm";
 import { storage } from "../storage";
+import { z } from "zod";
+import { ZodError } from "zod";
 
 const router = Router();
 
@@ -10,14 +9,7 @@ const router = Router();
 router.get("/training-assessments/:trainingId", async (req, res) => {
   try {
     const { trainingId } = req.params;
-    const assessments = await db.query.trainingAssessments.findMany({
-      where: eq(trainingAssessments.trainingId, parseInt(trainingId)),
-      with: {
-        user: true,
-        assessor: true,
-        scores: true,
-      },
-    });
+    const assessments = await storage.getTrainingAssessments(parseInt(trainingId));
     res.json(assessments);
   } catch (error) {
     console.error("Error fetching training assessments:", error);
@@ -39,34 +31,16 @@ router.post("/training-assessments", async (req, res) => {
       scores,
     } = req.body;
 
-    // Start a transaction
-    const result = await db.transaction(async (tx) => {
-      // Create the assessment
-      const [assessment] = await tx
-        .insert(trainingAssessments)
-        .values({
-          trainingId,
-          userId,
-          assessorId,
-          frequency,
-          totalScore,
-          status,
-          comments,
-        })
-        .returning();
-
-      // Create the assessment scores
-      if (scores && Array.isArray(scores)) {
-        await tx.insert(trainingAssessmentScores).values(
-          scores.map((score) => ({
-            assessmentId: assessment.id,
-            parameterId: score.parameterId,
-            score: score.score,
-          }))
-        );
-      }
-
-      return assessment;
+    const result = await storage.createTrainingAssessment({
+      trainingId,
+      userId,
+      assessorId,
+      assessmentDate: new Date().toISOString().split('T')[0],
+      frequency,
+      totalScore,
+      status,
+      comments,
+      scores,
     });
 
     res.status(201).json(result);
@@ -88,88 +62,56 @@ router.get("/training-feedback/:trainingId", async (req, res) => {
   }
 });
 
-// Submit training feedback and mark attendance
+// Public route to get training details for feedback
+router.get("/training-records/:id/feedback", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const record = await storage.getTrainingRecord(id);
+    
+    if (!record) {
+      return res.status(404).json({ error: "Training record not found" });
+    }
+    
+    res.json(record);
+  } catch (error) {
+    console.error('Error fetching training record:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch training record" });
+  }
+});
+
+// Public route to submit training feedback
 router.post("/training-feedback", async (req, res) => {
   try {
     console.log('Received feedback submission request:', req.body);
-    const {
-      trainingId,
-      userId,
-      isEffective,
-      trainingAidsGood,
-      durationSufficient,
-      contentExplained,
-      conductedProperly,
-      learningEnvironment,
-      helpfulForWork,
-      additionalTopics,
-      keyLearnings,
-      specialObservations,
-    } = req.body;
-
-    // Start a transaction
-    const result = await db.transaction(async (tx) => {
-      console.log('Starting transaction for feedback submission');
-      
-      // Create the feedback
-      console.log('Inserting feedback with values:', {
-        trainingId,
-        userId,
-        isEffective,
-        trainingAidsGood,
-        durationSufficient,
-        contentExplained,
-        conductedProperly,
-        learningEnvironment,
-        helpfulForWork,
-        additionalTopics,
-        keyLearnings,
-        specialObservations,
-      });
-
-      const [feedback] = await tx
-        .insert(trainingFeedback)
-        .values({
-          trainingId,
-          userId,
-          isEffective,
-          trainingAidsGood,
-          durationSufficient,
-          contentExplained,
-          conductedProperly,
-          learningEnvironment,
-          helpfulForWork,
-          additionalTopics,
-          keyLearnings,
-          specialObservations,
-        })
-        .returning();
-
-      console.log('Feedback inserted successfully:', feedback);
-
-      // Mark attendance as present
-      console.log('Marking attendance for user:', userId);
-      
-      await tx
-        .insert(trainingAttendees)
-        .values({
-          trainingId,
-          userId,
-          attendanceStatus: 'present',
-        })
-        .onConflictDoUpdate({
-          target: [trainingAttendees.trainingId, trainingAttendees.userId],
-          set: { attendanceStatus: 'present' },
-        });
-
-      console.log('Attendance marked successfully');
-      return feedback;
+    
+    // Validate the request data
+    const schema = z.object({
+      trainingId: z.number(),
+      userId: z.number(),
+      isEffective: z.boolean(),
+      trainingAidsGood: z.boolean(),
+      durationSufficient: z.boolean(),
+      contentExplained: z.boolean(),
+      conductedProperly: z.boolean(),
+      learningEnvironment: z.boolean(),
+      helpfulForWork: z.boolean(),
+      additionalTopics: z.string().optional(),
+      keyLearnings: z.string().optional(),
+      specialObservations: z.string().optional(),
     });
+
+    const validatedData = schema.parse(req.body);
+    
+    // Start a transaction
+    const result = await storage.submitTrainingFeedback(validatedData);
 
     console.log('Transaction completed successfully:', result);
     res.status(201).json(result);
   } catch (error) {
     console.error("Error submitting training feedback:", error);
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
     res.status(500).json({ error: error instanceof Error ? error.message : "Failed to submit training feedback" });
   }
 });
@@ -180,24 +122,29 @@ router.post("/training-attendance/mark-present", async (req, res) => {
     console.log('Received attendance marking request:', req.body);
     const { trainingId, userId } = req.body;
 
-    const result = await db
-      .insert(trainingAttendees)
-      .values({
-        trainingId,
-        userId,
-        attendanceStatus: 'present',
-      })
-      .onConflictDoUpdate({
-        target: [trainingAttendees.trainingId, trainingAttendees.userId],
-        set: { attendanceStatus: 'present' },
-      })
-      .returning();
-
+    const result = await storage.markTrainingAttendance(trainingId, userId);
     console.log('Attendance marked successfully:', result);
     res.status(201).json(result);
   } catch (error) {
     console.error("Error marking attendance:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : "Failed to mark attendance" });
+  }
+});
+
+// Get a specific training record
+router.get("/training-records/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const record = await storage.getTrainingRecord(id);
+    
+    if (!record) {
+      return res.status(404).json({ error: "Training record not found" });
+    }
+    
+    res.json(record);
+  } catch (error) {
+    console.error('Error fetching training record:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch training record" });
   }
 });
 

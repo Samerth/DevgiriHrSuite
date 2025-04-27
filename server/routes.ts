@@ -797,51 +797,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Submit training feedback and mark attendance
-  app.post("/api/training-feedback", requireAuth, async (req, res) => {
+  // Public route to get training details for feedback
+  app.get("/api/training-records/:id/feedback", async (req, res) => {
+    try {
+      console.log("Training feedback route accessed with ID:", req.params.id);
+      const id = parseInt(req.params.id);
+      console.log("Parsed ID:", id);
+      
+      const training = await storage.getTrainingRecord(id);
+      console.log("Training record retrieved:", training);
+      
+      if (!training) {
+        console.log("Training not found for ID:", id);
+        return res.status(404).json({ error: "Training not found" });
+      }
+      
+      console.log("Sending training data:", training);
+      res.json(training);
+    } catch (error) {
+      console.error("Error in training feedback route:", error);
+      res.status(500).json({ error: "Failed to fetch training record" });
+    }
+  });
+
+  // Public route to get attendees for a specific training
+  app.get("/api/training-records/:id/attendees", async (req, res) => {
+    try {
+      console.log("Training attendees route accessed with ID:", req.params.id);
+      const id = parseInt(req.params.id);
+      
+      const training = await storage.getTrainingRecord(id);
+      
+      if (!training) {
+        return res.status(404).json({ error: "Training not found" });
+      }
+      
+      // Return only the attendees array with user details
+      res.json(training.attendees || []);
+    } catch (error) {
+      console.error("Error fetching training attendees:", error);
+      res.status(500).json({ error: "Failed to fetch training attendees" });
+    }
+  });
+
+  // Public route to submit training feedback
+  app.post("/api/training-feedback", async (req, res) => {
     try {
       console.log('Received feedback submission request:', req.body);
-      const {
-        trainingId,
-        userId,
-        isEffective,
-        trainingAidsGood,
-        durationSufficient,
-        contentExplained,
-        conductedProperly,
-        learningEnvironment,
-        helpfulForWork,
-        additionalTopics,
-        keyLearnings,
-        specialObservations,
-      } = req.body;
-
-      // Start a transaction
-      const result = await storage.submitTrainingFeedback({
-        trainingId,
-        userId,
-        isEffective,
-        trainingAidsGood,
-        durationSufficient,
-        contentExplained,
-        conductedProperly,
-        learningEnvironment,
-        helpfulForWork,
-        additionalTopics,
-        keyLearnings,
-        specialObservations,
+      
+      // Validate the request data
+      const schema = z.object({
+        trainingId: z.number(),
+        userId: z.number(),
+        isEffective: z.boolean(),
+        trainingAidsGood: z.boolean(),
+        durationSufficient: z.boolean(),
+        contentExplained: z.boolean(),
+        conductedProperly: z.boolean(),
+        learningEnvironment: z.boolean(),
+        helpfulForWork: z.boolean(),
+        additionalTopics: z.string().optional(),
+        keyLearnings: z.string().optional(),
+        specialObservations: z.string().optional(),
       });
+
+      const validatedData = schema.parse(req.body);
+      
+      // Start a transaction
+      const result = await storage.submitTrainingFeedback(validatedData);
 
       console.log('Transaction completed successfully:', result);
       res.status(201).json(result);
     } catch (error) {
       console.error("Error submitting training feedback:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to submit training feedback" });
     }
   });
 
   // Mark training attendance
-  app.post("/api/training-attendance/mark-present", requireAuth, async (req, res) => {
+  app.post("/api/training-attendance/mark-present", async (req, res) => {
     try {
       console.log('Received attendance marking request:', req.body);
       const { trainingId, userId } = req.body;

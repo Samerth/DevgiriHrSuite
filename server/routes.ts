@@ -34,7 +34,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }),
       cookie: {
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.USE_HTTPS === "true", // Only use secure cookies if HTTPS is enabled
+        sameSite: process.env.USE_HTTPS === "true" ? "none" : "lax",
+        httpOnly: true
       },
     })
   );

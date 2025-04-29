@@ -139,18 +139,20 @@ export const getQueryFn: <T>(options: {
         credentials: "include",
       });
 
-      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-        return null;
-      }
-      
-      // If we have a 401 (unauthorized) error and we're in development
       if (res.status === 401) {
+        if (unauthorizedBehavior === "returnNull") {
+          return null;
+        }
+        
+        // In production, redirect to login on 401
+        if (process.env.NODE_ENV === "production") {
+          window.location.href = "/login";
+          return null;
+        }
+        
+        // Development fallback to mock data
         console.log(`Auth error for ${url}, using mock data instead`);
-        
-        // Extract the base URL without query params
         const baseUrl = url.split('?')[0];
-        
-        // Find matching mock data
         const mockEndpoint = Object.keys(mockDataMap).find(endpoint => 
           baseUrl === endpoint || url.startsWith(endpoint)
         );
@@ -165,15 +167,17 @@ export const getQueryFn: <T>(options: {
     } catch (error) {
       console.error(`Query failed: ${url}`, error);
       
-      // In development, return mock data instead of throwing
-      const baseUrl = url.split('?')[0];
-      const mockEndpoint = Object.keys(mockDataMap).find(endpoint => 
-        baseUrl === endpoint || url.startsWith(endpoint)
-      );
-      
-      if (mockEndpoint) {
-        console.log(`Returning mock data for ${url}`);
-        return mockDataMap[mockEndpoint];
+      // Only use mock data in development
+      if (process.env.NODE_ENV !== "production") {
+        const baseUrl = url.split('?')[0];
+        const mockEndpoint = Object.keys(mockDataMap).find(endpoint => 
+          baseUrl === endpoint || url.startsWith(endpoint)
+        );
+        
+        if (mockEndpoint) {
+          console.log(`Returning mock data for ${url}`);
+          return mockDataMap[mockEndpoint];
+        }
       }
       
       throw error;

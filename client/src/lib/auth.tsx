@@ -55,7 +55,12 @@ const AuthContext = createContext<AuthContextType>({
 
 // Simple authentication utilities
 export const isAuthenticated = (): boolean => {
-  return true; // Always authenticated in development
+  const savedAuth = sessionStorage.getItem('authState');
+  if (savedAuth) {
+    const parsed = JSON.parse(savedAuth);
+    return parsed.isAuthenticated && !!parsed.user;
+  }
+  return false;
 };
 
 export const getCurrentUser = (): User => {

@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { config } from "@/config";
 
 interface TrainingQRCodeProps {
   trainingId: number;
@@ -14,7 +15,7 @@ interface TrainingQRCodeProps {
 }
 
 export function TrainingQRCode({ trainingId, open, onOpenChange }: TrainingQRCodeProps) {
-  const feedbackUrl = `http://localhost:5000/training-feedback/${trainingId}`;
+  const feedbackUrl = `${config.baseUrl}/training-feedback/${trainingId}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

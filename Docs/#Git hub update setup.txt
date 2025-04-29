@@ -1,0 +1,36 @@
+#Git hub update setup
+#chmod +x deploy.sh (after creating ./deploy.sh through nano to make it executable) 
+# run through command ./deploy.sh to pull latest changes from GitHub.
+
+
+
+
+#!/bin/bash
+
+# === Devgiri HR Suite Deployment Script ===
+
+echo "🚀 Starting deployment..."
+
+# 1. Go to project directory
+cd /root/devgiri_hr/app || exit
+
+# 2. Pull the latest changes from GitHub
+echo "📥 Pulling latest changes from GitHub..."
+git pull origin main
+
+# 3. Install dependencies
+echo "📦 Installing/updating npm packages..."
+npm install
+
+# 4. Build the project (backend + frontend)
+echo "🏗️ Building the project..."
+npm run build
+
+# 5. Restart the PM2 process
+echo "🔄 Restarting the application via PM2..."
+pm2 restart devgiri_hr-app
+
+# 6. Save PM2 process list
+pm2 save
+
+echo "✅ Deployment finished successfully!"

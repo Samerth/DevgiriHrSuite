@@ -1,0 +1,74 @@
+#First time application deployment script on Ubuntu Server
+#Directory and domain name should be updated as needed.
+
+#!/bin/bash
+
+# 1. Update System Packages
+sudo apt update && sudo apt upgrade -y
+
+# 2. Install Node.js (LTS version) if not installed
+if ! command -v node &> /dev/null
+then
+    echo "Node.js not found. Installing Node.js LTS..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt install -y nodejs
+fi
+
+# 3. Install PM2 to Manage the Node.js Application
+sudo npm install -g pm2
+
+# 4. Clone the GitHub Repository
+cd /var/www
+sudo mkdir -p codsphere 
+cd codsphere
+sudo git clone -b main https://github.com/Samerth/DevgiriHrSuite.git app
+cd app
+
+# 5. Install Project Dependencies
+npm install
+
+# 6. (Optional) Build the React App if Needed
+# npm run build
+
+# 7. Start the Server Using PM2
+pm2 start app.js --name codsphere-app
+
+# 8. Configure PM2 to Restart on Server Reboot
+pm2 startup
+pm2 save
+
+# 9. Install and Configure Nginx
+sudo apt install -y nginx
+
+# 10. Create Nginx Configuration File
+sudo tee /etc/nginx/sites-available/codsphere.in > /dev/null <<EOF
+server {
+    listen 80;
+    server_name codsphere.in www.codsphere.in;
+
+    location / {
+        proxy_pass http://localhost:3000; # Node.js app expected on port 3000
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+EOF
+
+# 11. Enable the New Nginx Site
+sudo ln -s /etc/nginx/sites-available/codsphere.in /etc/nginx/sites-enabled/
+
+# 12. Test Nginx Configuration
+sudo nginx -t
+
+# 13. Reload Nginx to Apply Changes
+sudo systemctl reload nginx
+
+# 14. Install Certbot and Setup SSL
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d codsphere.in -d www.codsphere.in
+
+# 15. Deployment Complete
+echo "🚀 Devgiri HR Suite is now deployed at https://codsphere.in!"

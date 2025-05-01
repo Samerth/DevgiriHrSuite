@@ -1,78 +1,103 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
-import { useAuth } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
+import { useEffect } from 'react'
+import { useLocation } from 'wouter'
+import { Auth } from '@supabase/auth-ui-react'
+import { ThemeSupa } from '@supabase/auth-ui-shared'
+import { supabase } from '@/lib/supabase'
+import { useToast } from '@/hooks/use-toast'
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [, setLocation] = useLocation();
-  const { login } = useAuth();
+  const [, setLocation] = useLocation()
+  const { toast } = useToast()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      const success = await login(email, password);
-      if (success) {
-        toast.success("Login successful");
-        setLocation("/dashboard");
-      } else {
-        toast.error("Invalid credentials");
+  useEffect(() => {
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Session error:', error)
+        return
       }
-    } catch (error) {
-      toast.error("An error occurred during login");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      
+      if (session) {
+        // Verify the session is not expired
+        const now = Math.floor(Date.now() / 1000)
+        const expiresAt = session.expires_at || 0
+        
+        if (expiresAt > now) {
+          setLocation('/dashboard')
+        } else {
+          // Session expired, try to refresh
+          supabase.auth.refreshSession().then(({ data: { session: refreshedSession }, error: refreshError }) => {
+            if (refreshError) {
+              console.error('Session refresh error:', refreshError)
+              return
+            }
+            
+            if (refreshedSession) {
+              setLocation('/dashboard')
+            }
+          })
+        }
+      }
+    })
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN') {
+        // Verify the session is not expired
+        const now = Math.floor(Date.now() / 1000)
+        const expiresAt = session?.expires_at || 0
+        
+        if (expiresAt > now) {
+          setLocation('/dashboard')
+        } else {
+          // Session expired, try to refresh
+          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession()
+          
+          if (refreshError) {
+            console.error('Session refresh error:', refreshError)
+            return
+          }
+          
+          if (refreshedSession) {
+            setLocation('/dashboard')
+          }
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setLocation('/login')
+      } else if (event === 'TOKEN_REFRESHED') {
+        setLocation('/dashboard')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [setLocation])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <Card className="w-[400px]">
-        <CardHeader>
-          <CardTitle>Login to Devgiri HR Suite</CardTitle>
-          <CardDescription>Enter your credentials to access your account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Logging in..." : "Login"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center font-bold mx-auto">
+            DG
+          </div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Devgiri HR Suite
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Sign in to your account
+          </p>
+        </div>
+        <div className="mt-8">
+          <Auth
+            supabaseClient={supabase}
+            appearance={{ theme: ThemeSupa }}
+            theme="light"
+            providers={['google']}
+            redirectTo={`${window.location.origin}/auth/callback`}
+          />
+        </div>
+      </div>
     </div>
-  );
+  )
 } 

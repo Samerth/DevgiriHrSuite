@@ -135,9 +135,7 @@ export default function Training() {
                         size="sm"
                         onClick={async () => {
                           try {
-                            await fetch(`/api/training-records/${record.id}`, {
-                              method: 'DELETE',
-                            });
+                            await apiRequest('DELETE', `/api/training-records/${record.id}`);
                             toast({
                               title: "Success",
                               description: "Training record deleted successfully",

@@ -62,21 +62,45 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
     try {
       console.log('Submitting feedback:', { trainingId, ...data });
       
+      // Check if we're in a public route (no auth token)
+      const isPublicRoute = !window.location.pathname.startsWith('/api');
+      
       // Save feedback
-      const feedbackResponse = await apiRequest("POST", "/api/training-feedback", {
-        trainingId,
-        userId: parseInt(data.userId),
-        isEffective: data.isEffective,
-        trainingAidsGood: data.trainingAidsGood,
-        durationSufficient: data.durationSufficient,
-        contentExplained: data.contentExplained,
-        conductedProperly: data.conductedProperly,
-        learningEnvironment: data.learningEnvironment,
-        helpfulForWork: data.helpfulForWork,
-        additionalTopics: data.additionalTopics,
-        keyLearnings: data.keyLearnings,
-        specialObservations: data.specialObservations,
-      });
+      const feedbackResponse = isPublicRoute 
+        ? await fetch(`/api/training-feedback`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              trainingId,
+              userId: parseInt(data.userId),
+              isEffective: data.isEffective,
+              trainingAidsGood: data.trainingAidsGood,
+              durationSufficient: data.durationSufficient,
+              contentExplained: data.contentExplained,
+              conductedProperly: data.conductedProperly,
+              learningEnvironment: data.learningEnvironment,
+              helpfulForWork: data.helpfulForWork,
+              additionalTopics: data.additionalTopics,
+              keyLearnings: data.keyLearnings,
+              specialObservations: data.specialObservations,
+            }),
+          })
+        : await apiRequest("POST", "/api/training-feedback", {
+            trainingId,
+            userId: parseInt(data.userId),
+            isEffective: data.isEffective,
+            trainingAidsGood: data.trainingAidsGood,
+            durationSufficient: data.durationSufficient,
+            contentExplained: data.contentExplained,
+            conductedProperly: data.conductedProperly,
+            learningEnvironment: data.learningEnvironment,
+            helpfulForWork: data.helpfulForWork,
+            additionalTopics: data.additionalTopics,
+            keyLearnings: data.keyLearnings,
+            specialObservations: data.specialObservations,
+          });
 
       if (!feedbackResponse.ok) {
         const errorText = await feedbackResponse.text();
@@ -86,28 +110,42 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
       console.log('Feedback submitted successfully');
 
       // Mark attendance as present
-      const attendanceResponse = await apiRequest("POST", "/api/training-attendance/mark-present", {
-        trainingId,
-        userId: parseInt(data.userId),
-      });
+      const attendanceResponse = isPublicRoute
+        ? await fetch(`/api/training-attendance/mark-present`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              trainingId,
+              userId: parseInt(data.userId),
+            }),
+          })
+        : await apiRequest("POST", "/api/training-attendance/mark-present", {
+            trainingId,
+            userId: parseInt(data.userId),
+          });
 
       if (!attendanceResponse.ok) {
         const errorText = await attendanceResponse.text();
-        console.warn(`Failed to mark attendance: ${errorText}`);
-        // Don't throw error here, just log it as a warning
-        // The feedback was submitted successfully, so we can still show success
-      } else {
-        console.log('Attendance marked successfully');
+        throw new Error(`Failed to mark attendance: ${errorText}`);
       }
 
-      toast({ title: "Success", description: "Feedback submitted successfully." });
-      onSuccess?.();
+      console.log('Attendance marked successfully');
+      toast({
+        title: "Success",
+        description: "Feedback submitted successfully",
+      });
+      
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error) {
-      console.error('Error in feedback submission:', error);
-      toast({ 
-        variant: "destructive", 
-        title: "Error", 
-        description: error instanceof Error ? error.message : "Failed to submit feedback." 
+      console.error('Error submitting feedback:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to submit feedback",
       });
     } finally {
       setSubmitting(false);

@@ -1,6 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { DashboardStats, LeaveRequestWithUser, AttendanceWithUser } from "./types";
 import { User } from "@shared/schema";
+import { supabase } from "./supabase";
 
 // Mock data for development purposes (to avoid 401 errors)
 const mockDashboardStats: DashboardStats = {
@@ -110,17 +111,70 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Create a token provider that can be set from the auth context
+let tokenProvider: (() => string | null) | null = null;
+
+export const setTokenProvider = (provider: () => string | null) => {
+  tokenProvider = provider;
+};
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  // Get the session token using the provider
+  const token = tokenProvider?.() || null;
+  
+  // Prepare headers with authorization if token exists
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json"
+  };
+  
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    credentials: 'include'
   });
+
+  if (res.status === 401) {
+    console.log('Token expired, attempting to refresh...');
+    // Try to refresh the session before redirecting
+    const { data: { session }, error } = await supabase.auth.refreshSession();
+    
+    if (error || !session) {
+      console.error('Failed to refresh session:', error);
+      // If refresh fails, clear session and redirect
+      await supabase.auth.signOut();
+      window.location.href = "/login";
+      throw new Error("Unauthorized");
+    }
+    
+    console.log('Session refreshed successfully');
+    // Retry the request with the new token
+    headers["Authorization"] = `Bearer ${session.access_token}`;
+    const retryRes = await fetch(url, {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: 'include'
+    });
+    
+    if (retryRes.status === 401) {
+      console.error('Retry failed with 401');
+      // If retry still fails, clear session and redirect
+      await supabase.auth.signOut();
+      window.location.href = "/login";
+      throw new Error("Unauthorized");
+    }
+    
+    return retryRes;
+  }
 
   await throwIfResNotOk(res);
   return res;
@@ -135,8 +189,19 @@ export const getQueryFn: <T>(options: {
     const url = queryKey[0] as string;
     
     try {
+      // Get the session token using the provider
+      const token = tokenProvider?.() || null;
+      
+      // Prepare headers with authorization if token exists
+      const headers: Record<string, string> = {};
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
       const res = await fetch(url, {
-        credentials: "include",
+        headers,
+        credentials: 'include'
       });
 
       if (res.status === 401) {
@@ -144,42 +209,37 @@ export const getQueryFn: <T>(options: {
           return null;
         }
         
-        // In production, redirect to login on 401
-        if (process.env.NODE_ENV === "production") {
+        // Try to refresh the session before redirecting
+        const { data: { session }, error } = await supabase.auth.refreshSession();
+        
+        if (error || !session) {
+          // If refresh fails, clear session and redirect
+          await supabase.auth.signOut();
           window.location.href = "/login";
-          return null;
+          throw new Error("Unauthorized");
         }
         
-        // Development fallback to mock data
-        console.log(`Auth error for ${url}, using mock data instead`);
-        const baseUrl = url.split('?')[0];
-        const mockEndpoint = Object.keys(mockDataMap).find(endpoint => 
-          baseUrl === endpoint || url.startsWith(endpoint)
-        );
+        // Retry the request with the new token
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+        const retryRes = await fetch(url, {
+          headers,
+          credentials: 'include'
+        });
         
-        if (mockEndpoint) {
-          return mockDataMap[mockEndpoint];
+        if (retryRes.status === 401) {
+          // If retry still fails, clear session and redirect
+          await supabase.auth.signOut();
+          window.location.href = "/login";
+          throw new Error("Unauthorized");
         }
+        
+        return await retryRes.json();
       }
 
       await throwIfResNotOk(res);
       return await res.json();
     } catch (error) {
-      console.error(`Query failed: ${url}`, error);
-      
-      // Only use mock data in development
-      if (process.env.NODE_ENV !== "production") {
-        const baseUrl = url.split('?')[0];
-        const mockEndpoint = Object.keys(mockDataMap).find(endpoint => 
-          baseUrl === endpoint || url.startsWith(endpoint)
-        );
-        
-        if (mockEndpoint) {
-          console.log(`Returning mock data for ${url}`);
-          return mockDataMap[mockEndpoint];
-        }
-      }
-      
+      console.error("API request failed:", error);
       throw error;
     }
   };

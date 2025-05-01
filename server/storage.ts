@@ -115,6 +115,9 @@ export interface IStorage {
     specialObservations?: string;
   }): Promise<any>;
   markTrainingAttendance(trainingId: number, userId: number): Promise<any>;
+
+  // New method for syncing user from Supabase
+  syncUserFromSupabase(supabaseUser: any): Promise<User>;
 }
 
 // In-Memory Storage implementation
@@ -168,7 +171,7 @@ export class MemStorage implements IStorage {
       department: "hr",
       position: "HR Administrator",
       employeeId: "EMP001",
-      joinDate: new Date("2022-01-01"),
+      joinDate: new Date("2022-01-01").toISOString().split('T')[0],
       address: "123 Main St, Mumbai",
       profileImageUrl: "",
     });
@@ -748,6 +751,58 @@ export class MemStorage implements IStorage {
     
     this.trainingAttendees.set(attendanceId, attendance);
     return attendance;
+  }
+
+  // New method for syncing user from Supabase
+  async syncUserFromSupabase(supabaseUser: any): Promise<User> {
+    try {
+      console.log('Syncing user with data:', JSON.stringify(supabaseUser, null, 2));
+      
+      // Check if user already exists by email
+      const existingUser = Array.from(this.users.values()).find(
+        user => user.email === supabaseUser.email
+      );
+
+      if (existingUser) {
+        console.log('User already exists:', existingUser);
+        return existingUser;
+      }
+
+      // Generate a dummy username from email (before @ symbol)
+      const emailPrefix = supabaseUser.email.split('@')[0];
+      const randomSuffix = Math.random().toString(36).substring(2, 6);
+      const dummyUsername = `${emailPrefix}_${randomSuffix}`;
+      
+      // Create user with required fields
+      const userData = {
+        username: dummyUsername,
+        password: `supabase_auth_${randomSuffix}`, // Placeholder password since auth is handled by Supabase
+        email: supabaseUser.email,
+        firstName: supabaseUser.user_metadata?.first_name || emailPrefix,
+        lastName: supabaseUser.user_metadata?.last_name || 'User',
+        role: 'employee' as const,
+        department: supabaseUser.user_metadata?.department || null,
+        position: supabaseUser.user_metadata?.position || null,
+        employeeId: supabaseUser.user_metadata?.employee_id || null,
+        qrCode: null, // Will be generated separately if needed
+        joinDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+        phone: supabaseUser.phone || null,
+        address: supabaseUser.user_metadata?.address || null,
+        profileImageUrl: supabaseUser.user_metadata?.avatar_url || null,
+        salary: null,
+        fatherName: null,
+        isActive: true
+      };
+
+      console.log('Creating new user with data:', userData);
+
+      const newUser = await this.createUser(userData);
+      console.log('User created successfully:', newUser);
+      return newUser;
+    } catch (error) {
+      console.error("Error syncing user from Supabase:", error);
+      throw error;
+    }
   }
 }
 
@@ -1571,6 +1626,58 @@ export class DatabaseStorage implements IStorage {
       return result[0];
     } catch (error) {
       console.error("Error marking attendance:", error);
+      throw error;
+    }
+  }
+
+  // New method for syncing user from Supabase
+  async syncUserFromSupabase(supabaseUser: any): Promise<User> {
+    try {
+      console.log('Syncing user with data:', JSON.stringify(supabaseUser, null, 2));
+      
+      // Check if user already exists by email
+      const existingUser = Array.from(this.users.values()).find(
+        user => user.email === supabaseUser.email
+      );
+
+      if (existingUser) {
+        console.log('User already exists:', existingUser);
+        return existingUser;
+      }
+
+      // Generate a dummy username from email (before @ symbol)
+      const emailPrefix = supabaseUser.email.split('@')[0];
+      const randomSuffix = Math.random().toString(36).substring(2, 6);
+      const dummyUsername = `${emailPrefix}_${randomSuffix}`;
+      
+      // Create user with required fields
+      const userData = {
+        username: dummyUsername,
+        password: `supabase_auth_${randomSuffix}`, // Placeholder password since auth is handled by Supabase
+        email: supabaseUser.email,
+        firstName: supabaseUser.user_metadata?.first_name || emailPrefix,
+        lastName: supabaseUser.user_metadata?.last_name || 'User',
+        role: 'employee' as const,
+        department: supabaseUser.user_metadata?.department || null,
+        position: supabaseUser.user_metadata?.position || null,
+        employeeId: supabaseUser.user_metadata?.employee_id || null,
+        qrCode: null, // Will be generated separately if needed
+        joinDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+        phone: supabaseUser.phone || null,
+        address: supabaseUser.user_metadata?.address || null,
+        profileImageUrl: supabaseUser.user_metadata?.avatar_url || null,
+        salary: null,
+        fatherName: null,
+        isActive: true
+      };
+
+      console.log('Creating new user with data:', userData);
+
+      const newUser = await this.createUser(userData);
+      console.log('User created successfully:', newUser);
+      return newUser;
+    } catch (error) {
+      console.error("Error syncing user from Supabase:", error);
       throw error;
     }
   }

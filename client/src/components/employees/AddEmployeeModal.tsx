@@ -100,6 +100,10 @@ export default function AddEmployeeModal({ open, onClose, onEmployeeAdded }: Add
 
     try {
       // Generate a unique QR code for the employee
+      if (!data.employeeId) {
+        throw new Error("Employee ID is required to generate QR code");
+      }
+
       const qrData = {
         id: data.employeeId,
         type: 'employee',

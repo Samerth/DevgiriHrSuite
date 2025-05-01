@@ -13,116 +13,217 @@ import {
   attendanceMethodEnum,
   type InsertAttendance
 } from "@shared/schema";
-import session from "express-session";
-import passport from "passport";
-import { Strategy as LocalStrategy } from "passport-local";
-import MemoryStore from "memorystore";
 import { z } from "zod";
 import { ZodError } from "zod";
+import { supabase } from "./supabase";
+import path from "path";
+import fs from "fs";
 
-const SessionStore = MemoryStore(session);
+// Extend Express Request type to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any; // We'll use any for now since we're getting the user from Supabase
+    }
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Set up sessions and authentication
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "devgiri-hr-secret",
-      resave: false,
-      saveUninitialized: false,
-      store: new SessionStore({
-        checkPeriod: 86400000, // prune expired entries every 24h
-      }),
-      cookie: {
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        secure: process.env.USE_HTTPS === "true", // Only use secure cookies if HTTPS is enabled
-        sameSite: process.env.USE_HTTPS === "true" ? "none" : "lax",
-        httpOnly: true
-      },
-    })
-  );
-
-  app.use(passport.initialize());
-  app.use(passport.session());
-
-  // Configure passport
-  passport.use(
-    new LocalStrategy(
-      {
-        usernameField: "email",
-        passwordField: "password",
-      },
-      async (email, password, done) => {
-        try {
-          const user = await storage.getUserByEmail(email);
-          if (!user) return done(null, false, { message: "Incorrect email" });
-          if (user.password !== password) {
-            return done(null, false, { message: "Incorrect password" });
-          }
-          return done(null, user);
-        } catch (error) {
-          return done(error);
-        }
-      }
-    )
-  );
-
-  passport.serializeUser((user: any, done) => {
-    done(null, user.id);
-  });
-
-  passport.deserializeUser(async (id: number, done) => {
-    try {
-      const user = await storage.getUser(id);
-      done(null, user);
-    } catch (error) {
-      done(error);
-    }
-  });
-
   // Auth middleware
-  const requireAuth = (req: Request, res: Response, next: any) => {
-    if (!req.isAuthenticated()) {
+  const requireAuth = async (req: Request, res: Response, next: any) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+      console.log('No authorization header');
       return res.status(401).json({ message: "Unauthorized" });
     }
-    next();
+
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+      console.log('No token in authorization header');
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Verify the token with Supabase
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      
+      if (error) {
+        console.error('Token verification error:', error);
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (!user) {
+        console.log('No user found for token');
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Check if user is admin using the role from auth.users
+      if (user.role !== "authenticated") {
+        console.log('User is not authenticated:', user.email);
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Attach the user to the request
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error('Auth error:', error);
+      return res.status(401).json({ message: "Unauthorized" });
+    }
   };
 
-  const requireAdmin = (req: Request, res: Response, next: any) => {
-    if (!req.isAuthenticated()) {
+  const requireAdmin = async (req: Request, res: Response, next: any) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+      console.log('No authorization header');
       return res.status(401).json({ message: "Unauthorized" });
     }
-    const user = req.user as any;
-    if (user.role !== "admin") {
-      return res.status(403).json({ message: "Forbidden" });
+
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+      console.log('No token in authorization header');
+      return res.status(401).json({ message: "Unauthorized" });
     }
-    next();
+
+    try {
+      // Verify the token with Supabase
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      
+      if (error) {
+        console.error('Token verification error:', error);
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (!user) {
+        console.log('No user found for token');
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Check if user is admin using the role from auth.users
+      if (user.role !== "authenticated") {
+        console.log('User is not authenticated:', user.email);
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Attach the user to the request
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error('Auth error:', error);
+      return res.status(401).json({ message: "Unauthorized" });
+    }
   };
 
   // Auth routes
-  app.post("/api/auth/login", (req: Request, res: Response, next: any) => {
-    passport.authenticate("local", (err: Error | null, user: any, info: { message: string }) => {
-      if (err) return next(err);
-      if (!user) {
-        return res.status(401).json({ message: info.message });
-      }
-      req.logIn(user, (err: Error | null) => {
-        if (err) return next(err);
-        return res.json({ user });
+  app.post("/api/auth/signup", async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body;
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
       });
-    })(req, res, next);
-  });
 
-  app.post("/api/auth/logout", (req, res) => {
-    req.logout(() => {
-      res.json({ success: true });
-    });
-  });
+      if (error) {
+        return res.status(400).json({ message: error.message });
+      }
 
-  app.get("/api/auth/me", (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ authenticated: false });
+      // Sync the user to our database
+      if (data.user) {
+        try {
+          await storage.syncUserFromSupabase(data.user);
+        } catch (syncError) {
+          console.error('Error syncing user:', syncError);
+          // Don't fail the signup if sync fails
+        }
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('Signup error:', error);
+      res.status(500).json({ message: "Internal server error" });
     }
-    res.json({ authenticated: true, user: req.user });
+  });
+
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return res.status(400).json({ message: error.message });
+      }
+
+      // Sync the user to our database
+      if (data.user) {
+        try {
+          await storage.syncUserFromSupabase(data.user);
+        } catch (syncError) {
+          console.error('Error syncing user:', syncError);
+          // Don't fail the login if sync fails
+        }
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/logout", async (req: Request, res: Response) => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        return res.status(500).json({ message: error.message });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Logout error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/auth/me", requireAuth, async (req: Request, res: Response) => {
+    res.json({ user: req.user });
+  });
+  
+  app.get("/api/auth/callback", async (req: Request, res: Response) => {
+    try {
+      const { code } = req.query;
+      if (!code) {
+        return res.status(400).json({ message: "No code provided" });
+      }
+
+      const { data, error } = await supabase.auth.exchangeCodeForSession(
+        code as string
+      );
+
+      if (error) {
+        return res.status(400).json({ message: error.message });
+      }
+
+      // Sync the user to our database
+      if (data.user) {
+        try {
+          await storage.syncUserFromSupabase(data.user);
+        } catch (syncError) {
+          console.error('Error syncing user:', syncError);
+          // Don't fail the auth if sync fails
+        }
+      }
+
+      res.json(data);
+    } catch (error) {
+      console.error('Auth callback error:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
   
   // Enums endpoint - provides all enum values for the client
@@ -715,38 +816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dashboard stats
-  app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
-    try {
-      const users = await storage.getAllUsers();
-      const pendingLeaveRequests = await storage.getPendingLeaveRequests();
-      const todayAttendance = await storage.getTodayAttendance();
-      
-      const present = todayAttendance.filter(a => a.status === 'present').length;
-      const onLeave = todayAttendance.filter(a => a.status === 'on_leave').length;
-      
-      res.json({
-        totalEmployees: users.length,
-        presentToday: present,
-        onLeave: onLeave,
-        pendingRequests: pendingLeaveRequests.length
-      });
-    } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
-    }
-  });
-
-  // Training Assessment Parameters endpoints
-  app.get("/api/training-assessment-parameters", requireAuth, async (req, res) => {
-    try {
-      const parameters = await storage.getTrainingAssessmentParameters();
-      res.json(parameters);
-    } catch (error) {
-      console.error("Error fetching assessment parameters:", error);
-      res.status(500).json({ error: (error as Error).message });
-    }
-  });
-
+  // Training Assessments routes
   app.post("/api/training-assessments", requireAuth, async (req, res) => {
     try {
       const schema = z.object({
@@ -788,7 +858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Training Feedback routes
-  app.get("/api/training-feedback/:trainingId", requireAuth, async (req, res) => {
+  app.get("/api/training-feedback/:trainingId", async (req, res) => {
     try {
       const trainingId = parseInt(req.params.trainingId);
       const feedback = await storage.getTrainingFeedback(trainingId);
@@ -891,6 +961,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking attendance:", error);
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to mark attendance" });
+    }
+  });
+
+  // Add a route to sync user from Supabase
+  app.post("/api/auth/sync-user", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const syncedUser = await storage.syncUserFromSupabase(user);
+      res.json(syncedUser);
+    } catch (error) {
+      console.error('Error syncing user:', error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Add this after the requireAdmin middleware
+  app.post('/api/sync-user', requireAuth, async (req: Request, res: Response) => {
+    try {
+      console.log('Syncing user:', req.user);
+      
+      if (!req.user) {
+        return res.status(400).json({ message: 'No user data provided' });
+      }
+
+      const syncedUser = await storage.syncUserFromSupabase(req.user);
+      console.log('User synced successfully:', syncedUser);
+      
+      return res.status(200).json(syncedUser);
+    } catch (error) {
+      console.error('Error syncing user:', error);
+      return res.status(500).json({ message: 'Error syncing user' });
+    }
+  });
+
+  // Add the sync-user route
+  app.post('/api/auth/sync-user', requireAuth, async (req: Request, res: Response) => {
+    try {
+      console.log('Starting user sync with data:', {
+        reqUser: req.user,
+        headers: req.headers
+      });
+      
+      if (!req.user) {
+        console.log('No user data in request');
+        return res.status(400).json({ message: 'No user data provided' });
+      }
+
+      // Validate required user fields
+      const { email, id } = req.user;
+      if (!email) {
+        console.log('Missing required user field: email');
+        return res.status(400).json({ message: 'Missing required user field: email' });
+      }
+
+      // Log the user object structure before sync
+      console.log('User object before sync:', JSON.stringify(req.user, null, 2));
+
+      try {
+        const syncedUser = await storage.syncUserFromSupabase(req.user);
+        console.log('User synced successfully:', syncedUser);
+        
+        return res.status(200).json(syncedUser);
+      } catch (syncError) {
+        console.error('Error in syncUserFromSupabase:', syncError);
+        
+        // Check for specific error types
+        if (syncError instanceof Error) {
+          if (syncError.message.includes('duplicate key')) {
+            return res.status(409).json({ 
+              message: 'User already exists',
+              details: syncError.message
+            });
+          }
+          if (syncError.message.includes('validation')) {
+            return res.status(400).json({ 
+              message: 'Invalid user data',
+              details: syncError.message
+            });
+          }
+        }
+        
+        // For any other error, return a 500 with detailed error information
+        return res.status(500).json({ 
+          message: 'Error syncing user',
+          error: syncError instanceof Error ? syncError.message : 'Unknown error',
+          stack: syncError instanceof Error ? syncError.stack : undefined
+        });
+      }
+    } catch (error) {
+      // Detailed error logging
+      console.error('Error in sync-user endpoint:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined,
+        user: req.user
+      });
+      
+      return res.status(500).json({ 
+        message: 'Error processing sync request',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
   });
 

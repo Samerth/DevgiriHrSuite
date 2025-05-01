@@ -1,9 +1,10 @@
-import { Switch, Route, useLocation, Redirect } from "wouter";
+import { Switch, Route, useLocation, Redirect, Link } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, setTokenProvider } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 // Import the actual page components
 import Dashboard from "@/pages/Dashboard";
@@ -15,6 +16,7 @@ import NotFound from "@/pages/not-found";
 import { default as Training } from "@/pages/Training";
 import Login from "@/pages/Login";
 import TrainingFeedback from "@/pages/TrainingFeedback";
+import AuthCallback from "@/pages/AuthCallback";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -22,10 +24,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!authState.isAuthenticated && location !== '/login') {
-      setLocation('/login');
-    }
-  }, [authState.isAuthenticated, location, setLocation]);
+    const checkAuth = async () => {
+      if (!authState.isAuthenticated && location !== '/login') {
+        setLocation('/login');
+      }
+    };
+
+    checkAuth();
+  }, [location, setLocation, authState.isAuthenticated]);
 
   if (!authState.isAuthenticated) {
     return null;
@@ -60,41 +66,41 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <span className="text-xl font-semibold">Devgiri HR</span>
           </div>
           <nav className="mt-5 flex-1 px-2 space-y-1">
-            <a 
+            <Link 
               href="/dashboard" 
               className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${location === '/dashboard' || location === '/' ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               <span className="mr-3">📊</span>
               Dashboard
-            </a>
-            <a 
+            </Link>
+            <Link 
               href="/employees" 
               className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${location === '/employees' ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               <span className="mr-3">👥</span>
               Employees
-            </a>
-            <a 
+            </Link>
+            <Link 
               href="/attendance" 
               className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${location === '/attendance' ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               <span className="mr-3">⏰</span>
               Attendance
-            </a>
-            <a 
+            </Link>
+            <Link 
               href="/leaves" 
               className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${location === '/leaves' ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               <span className="mr-3">📅</span>
               Leave Management
-            </a>
-            <a 
+            </Link>
+            <Link 
               href="/training" 
               className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${location === '/training' ? 'bg-primary/10 text-primary' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               <span className="mr-3">📚</span>
               Training
-            </a>
+            </Link>
           </nav>
           <div className="flex-shrink-0 flex border-t p-4">
             <div className="flex items-center">
@@ -137,29 +143,55 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
         {/* Mobile Nav */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around py-2">
-          <a href="/dashboard" className={`flex flex-col items-center px-3 py-1 ${location === '/dashboard' || location === '/' ? 'text-primary' : 'text-gray-500'}`}>
+          <Link href="/dashboard" className={`flex flex-col items-center px-3 py-1 ${location === '/dashboard' || location === '/' ? 'text-primary' : 'text-gray-500'}`}>
             <span className="text-xl">📊</span>
             <span className="text-xs">Dashboard</span>
-          </a>
-          <a href="/employees" className={`flex flex-col items-center px-3 py-1 ${location === '/employees' ? 'text-primary' : 'text-gray-500'}`}>
+          </Link>
+          <Link href="/employees" className={`flex flex-col items-center px-3 py-1 ${location === '/employees' ? 'text-primary' : 'text-gray-500'}`}>
             <span className="text-xl">👥</span>
             <span className="text-xs">Employees</span>
-          </a>
-          <a href="/attendance" className={`flex flex-col items-center px-3 py-1 ${location === '/attendance' ? 'text-primary' : 'text-gray-500'}`}>
+          </Link>
+          <Link href="/attendance" className={`flex flex-col items-center px-3 py-1 ${location === '/attendance' ? 'text-primary' : 'text-gray-500'}`}>
             <span className="text-xl">⏰</span>
             <span className="text-xs">Attendance</span>
-          </a>
-          <a href="/leaves" className={`flex flex-col items-center px-3 py-1 ${location === '/leaves' ? 'text-primary' : 'text-gray-500'}`}>
+          </Link>
+          <Link href="/leaves" className={`flex flex-col items-center px-3 py-1 ${location === '/leaves' ? 'text-primary' : 'text-gray-500'}`}>
             <span className="text-xl">📅</span>
             <span className="text-xs">Leaves</span>
-          </a>
-          <a href="/training" className={`flex flex-col items-center px-3 py-1 ${location === '/training' ? 'text-primary' : 'text-gray-500'}`}>
+          </Link>
+          <Link href="/training" className={`flex flex-col items-center px-3 py-1 ${location === '/training' ? 'text-primary' : 'text-gray-500'}`}>
             <span className="text-xl">📚</span>
             <span className="text-xs">Training</span>
-          </a>
+          </Link>
         </div>
       </div>
     </div>
+  );
+};
+
+// Create a wrapper component that sets up the token provider
+const AppContent = () => {
+  return (
+    <Switch>
+      <Route path="/login" component={Login} />
+      <Route path="/auth/callback" component={AuthCallback} />
+      <Route path="/training-feedback/:id" component={TrainingFeedback} />
+      
+      <ProtectedRoute>
+        <Layout>
+          <Switch>
+            <Route path="/" component={Dashboard} />
+            <Route path="/dashboard" component={Dashboard} />
+            <Route path="/employees" component={Employees} />
+            <Route path="/attendance" component={Attendance} />
+            <Route path="/leaves" component={Leaves} />
+            <Route path="/leave-management" component={LeaveManagement} />
+            <Route path="/training" component={Training} />
+            <Route component={NotFound} />
+          </Switch>
+        </Layout>
+      </ProtectedRoute>
+    </Switch>
   );
 };
 
@@ -167,48 +199,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Layout>
-          <Switch>
-            <Route path="/login" component={Login} />
-            <Route path="/">
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/dashboard">
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/employees">
-              <ProtectedRoute>
-                <Employees />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/attendance">
-              <ProtectedRoute>
-                <Attendance />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/leaves">
-              <ProtectedRoute>
-                <Leaves />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/leave-management">
-              <ProtectedRoute>
-                <LeaveManagement />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/training">
-              <ProtectedRoute>
-                <Training />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/training-feedback/:id" component={TrainingFeedback} />
-            <Route component={NotFound} />
-          </Switch>
-        </Layout>
+        <AppContent />
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>

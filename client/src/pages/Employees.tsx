@@ -140,10 +140,10 @@ export default function Employees() {
     queryFn: async () => {
       try {
         const url = `/api/users/search?q=${encodeURIComponent(searchQuery)}${department && department !== "all" ? `&department=${encodeURIComponent(department)}` : ''}`;
-        const res = await fetch(url, { credentials: 'include' });
-        if (!res.ok) throw new Error('Failed to fetch employees');
+        const response = await apiRequest('GET', url);
+        if (!response.ok) throw new Error('Failed to fetch employees');
         setUsingLocalData(false);
-        return res.json();
+        return response.json();
       } catch (error) {
         console.error("Error fetching employees:", error);
         setUsingLocalData(true);

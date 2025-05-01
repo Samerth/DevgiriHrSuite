@@ -40,6 +40,7 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
+  // Apply Vite middleware before any other routes
   app.use(vite.middlewares);
   
   // Add a catch-all route for client-side routing

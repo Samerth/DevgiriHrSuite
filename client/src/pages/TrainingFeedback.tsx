@@ -3,10 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { TrainingFeedbackForm } from "@/components/training/TrainingFeedbackForm";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/lib/auth";
 
 export default function TrainingFeedback() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const { authState } = useAuth();
   const trainingId = parseInt(id || "0");
   
   console.log("TrainingFeedback component rendered");
@@ -18,7 +20,7 @@ export default function TrainingFeedback() {
     queryKey: ["training", trainingId],
     queryFn: async () => {
       console.log("Fetching training data for ID:", trainingId);
-      const response = await apiRequest("GET", `/api/training-records/${trainingId}/feedback`);
+      const response = await fetch(`/api/training-records/${trainingId}/feedback`);
       console.log("API response status:", response.status);
       
       if (!response.ok) {
@@ -61,7 +63,9 @@ export default function TrainingFeedback() {
             onSuccess={() => {
               // Show success message and redirect
               alert("Thank you for your feedback!");
-              window.close();
+              if (!authState.isAuthenticated) {
+                window.close();
+              }
             }} 
           />
         </CardContent>

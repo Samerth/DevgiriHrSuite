@@ -27,6 +27,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { EmployeeCombobox } from "@/components/common/EmployeeCombobox";
+import { User } from "@shared/schema";
 
 const trainingFormSchema = z.object({
   userId: z.string().min(1, "User is required"),
@@ -62,7 +63,7 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
   const form = useForm<z.infer<typeof trainingFormSchema>>({
     resolver: zodResolver(trainingFormSchema),
     defaultValues: {
-      userId: user?.id?.toString() || '',
+      userId: '',
       trainingTitle: '',
       trainingType: 'internal',
       date: '',
@@ -83,11 +84,21 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
     }
   });
 
-  const { data: users = [] } = useQuery({
-    queryKey: ['/api/users'],
+  const { data: users = [], isLoading: isLoadingUsers, error: usersError } = useQuery<User[]>({
+    queryKey: ['users'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/users');
-      return Array.isArray(response) ? response : [];
+      try {
+        const response = await apiRequest('GET', '/api/users');
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
+        const data = await response.json();
+        console.log('Fetched users:', data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
     }
   });
 
@@ -105,9 +116,23 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
       }
 
       console.log('Form data before formatting:', data);
+      console.log('Available employees:', users);
+      console.log('Looking for employee with ID:', data.userId);
+      
+      const employee = users.find(u => u.id === parseInt(data.userId));
+      console.log('Found employee:', employee);
+      
+      if (!employee) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Selected employee not found in database",
+        });
+        return;
+      }
 
       const formattedData = {
-        userId: parseInt(user?.id?.toString() || '0'),
+        userId: employee.id,
         trainingTitle: data.trainingTitle,
         trainingType: 'internal',
         date: new Date(data.date).toISOString().split('T')[0],
@@ -128,7 +153,7 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
 
       console.log('Formatted data before submission:', formattedData);
 
-      const response = await apiRequest('POST', '/api/training-records', formattedData);
+      const createResponse = await apiRequest('POST', '/api/training-records', formattedData);
 
       toast({
         title: "Success",
@@ -149,6 +174,19 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
     }
   };
 
+  if (isLoadingUsers) {
+    return <div>Loading employees...</div>;
+  }
+
+  if (usersError) {
+    console.error('Error loading employees:', usersError);
+    return <div>Error loading employees. Please try again later.</div>;
+  }
+
+  if (users.length === 0) {
+    return <div>No employees found. Please add employees first.</div>;
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -157,6 +195,35 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Employee Selection */}
+            <FormField
+              control={form.control}
+              name="userId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required">Employee</FormLabel>
+                  <FormControl>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an employee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id.toString()}>
+                            {user.firstName} {user.lastName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* Training Title */}
             <FormField
               control={form.control}
@@ -436,7 +503,7 @@ export function TrainingRecord({ onSuccess }: TrainingRecordProps) {
                                 <tr key={userId} className="border-b">
                                   <td className="px-4 py-2">{index + 1}</td>
                                   <td className="px-4 py-2">{user.firstName} {user.lastName}</td>
-                                  <td className="px-4 py-2">{user.employeeCode}</td>
+                                  <td className="px-4 py-2">{user.employeeId}</td>
                                   <td className="px-4 py-2">{user.department}</td>
                                   <td className="px-4 py-2">
                                     <Button

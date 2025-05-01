@@ -1,57 +1,32 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState } from 'react'
+import { User, Session } from '@supabase/supabase-js'
+import { supabase } from './supabase'
+import { setTokenProvider } from './queryClient'
 
-// Simple user type
-export interface User {
-  id: number;
-  username: string;
-  role: string;
+// Extended user type to include our custom fields
+export interface ExtendedUser extends User {
   firstName?: string;
   lastName?: string;
-  email?: string;
+  role?: string;
   department?: string;
-  employeeId: string;
+  employeeId?: string;
 }
-
-// Dummy user for development
-export const dummyUser: User = {
-  id: 1,
-  username: "admin",
-  role: "admin",
-  firstName: "Admin",
-  lastName: "User",
-  email: "admin@example.com",
-  department: "Management",
-  employeeId: "EMP001"
-};
 
 // Auth state type
 export interface AuthState {
   isAuthenticated: boolean;
-  user: {
-    id: number;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: string;
-    department: string;
-  } | null;
+  user: ExtendedUser | null;
+  session: Session | null;
 }
 
 // Auth context type
 export interface AuthContextType {
   authState: AuthState;
-  login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  getSessionToken: () => string | null;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  authState: {
-    isAuthenticated: false,
-    user: null,
-  },
-  login: async () => false,
-  logout: async () => {},
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // Simple authentication utilities
 export const isAuthenticated = (): boolean => {
@@ -63,110 +38,107 @@ export const isAuthenticated = (): boolean => {
   return false;
 };
 
-export const getCurrentUser = (): User => {
-  return dummyUser;
+export const getCurrentUser = (): ExtendedUser | null => {
+  const savedAuth = sessionStorage.getItem('authState');
+  if (savedAuth) {
+    const parsed = JSON.parse(savedAuth);
+    return parsed.user;
+  }
+  return null;
 };
 
 // Mock auth provider - just a placeholder since we removed it from App.tsx
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [authState, setAuthState] = useState<AuthState>(() => {
-    // Initialize from sessionStorage if available
-    const savedAuth = sessionStorage.getItem('authState');
-    if (savedAuth) {
-      const parsed = JSON.parse(savedAuth);
-      // Only restore if we have both isAuthenticated and user
-      if (parsed.isAuthenticated && parsed.user) {
-        return parsed;
-      }
-    }
-    return {
-      isAuthenticated: false,
-      user: null,
-    };
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [authState, setAuthState] = useState<AuthState>({
+    isAuthenticated: false,
+    user: null,
+    session: null
   });
 
-  // Save auth state to sessionStorage whenever it changes
   useEffect(() => {
-    if (authState.isAuthenticated && authState.user) {
-      sessionStorage.setItem('authState', JSON.stringify(authState));
-    } else {
-      sessionStorage.removeItem('authState');
-    }
-  }, [authState]);
+    const initializeSession = async () => {
+      try {
+        // Get the current session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          return;
+        }
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      // For development, use dummy user
-      if (email === dummyUser.email) {
-        setAuthState({
-          isAuthenticated: true,
-          user: {
-            id: dummyUser.id,
-            firstName: dummyUser.firstName || '',
-            lastName: dummyUser.lastName || '',
-            email: dummyUser.email || '',
-            role: dummyUser.role,
-            department: dummyUser.department || '',
-          },
-        });
-        return true;
+        if (session) {
+          setAuthState({
+            isAuthenticated: true,
+            user: session.user as ExtendedUser,
+            session
+          });
+          setTokenProvider(() => session.access_token);
+        }
+      } catch (error) {
+        console.error('Error initializing session:', error);
       }
+    };
 
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+    initializeSession();
 
-      if (response.ok) {
-        const userData = await response.json();
-        setAuthState({
-          isAuthenticated: true,
-          user: userData.user,
-        });
-        return true;
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          setAuthState({
+            isAuthenticated: true,
+            user: session.user as ExtendedUser,
+            session
+          });
+          setTokenProvider(() => session.access_token);
+        } else if (event === 'SIGNED_OUT') {
+          setAuthState({
+            isAuthenticated: false,
+            user: null,
+            session: null
+          });
+          setTokenProvider(() => null);
+        }
       }
-      return false;
-    } catch (error) {
-      console.error("Login failed:", error);
-      return false;
-    }
-  };
+    );
 
-  const logout = async (): Promise<void> => {
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const logout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch (error) {
-      console.error("Logout failed:", error);
-    } finally {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
       setAuthState({
         isAuthenticated: false,
         user: null,
+        session: null
       });
-      sessionStorage.removeItem('authState');
+      setTokenProvider(() => null);
+    } catch (error) {
+      console.error('Error logging out:', error);
     }
   };
 
-  const value = {
-    authState,
-    login,
-    logout,
+  const getSessionToken = () => {
+    return authState.session?.access_token || null;
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ authState, logout, getSessionToken }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
 // Add the useAuth hook to fix errors
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
   }
-  return context;
-};
+  return context
+}

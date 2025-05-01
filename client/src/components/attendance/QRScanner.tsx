@@ -16,6 +16,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { QrCode, CameraIcon, Fingerprint, Badge } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import QRCodeScanner from "@/components/common/QRCodeScanner";
+import { User } from "@shared/schema";
 
 interface QRScannerProps {
   open: boolean;
@@ -28,7 +29,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
   const [employeeId, setEmployeeId] = useState("");
   const { toast } = useToast();
   const { authState } = useAuth();
-  const user = authState.user;
+  const user = authState.user as User | null;
 
   const markAttendanceMutation = useMutation({
     mutationFn: async (data: { employeeId: string; checkInMethod: string }) => {
@@ -40,7 +41,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
       const users = await searchResponse.json();
 
       // Find the user with the exact employee ID match
-      const user = users.find((u: any) => u.employeeId === data.employeeId);
+      const user = users.find((u: User) => u.employeeId === data.employeeId);
 
       if (!user) {
         throw new Error("Employee not found");
@@ -102,7 +103,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
       const scannedEmployeeId = qrDataObj.id;
       console.log("Employee ID from QR:", scannedEmployeeId);
 
-      if (!scannedEmployeeId) {
+      if (!scannedEmployeeId || typeof scannedEmployeeId !== 'string' || scannedEmployeeId.trim() === '') {
         toast({
           variant: "destructive",
           title: "Invalid QR code",
@@ -114,10 +115,10 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
       // First search for the user
       const searchResponse = await apiRequest(
         "GET",
-        `/api/users/search?q=${scannedEmployeeId}`,
+        `/api/users/search?q=${encodeURIComponent(scannedEmployeeId)}`,
       );
       const users = await searchResponse.json();
-      const user = users.find((u: any) => u.employeeId === scannedEmployeeId);
+      const user = users.find((u: User) => u.employeeId === scannedEmployeeId);
 
       if (!user) {
         toast({
@@ -182,7 +183,7 @@ export default function QRScanner({ open, onClose }: QRScannerProps) {
     // For demo purposes, we'll just simulate a successful verification
     if (user) {
       markAttendanceMutation.mutate({
-        employeeId: user.employeeId,
+        employeeId: user.employeeId || '',
         checkInMethod: "biometric",
       });
     }

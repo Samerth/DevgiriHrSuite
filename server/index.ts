@@ -3,8 +3,21 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeDatabase } from "./db";
+import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
 
 const app = express();
+
+// Configure CORS
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Info'],
+  exposedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -57,12 +70,30 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+  // Development mode setup
   if (app.get("env") === "development") {
+    // Setup Vite middleware first
     await setupVite(app, server);
+    
+    // Add a development-specific route for training feedback
+    app.get("/training-feedback/:id", async (req, res) => {
+      try {
+        const indexPath = path.join(process.cwd(), 'client', 'index.html');
+        console.log("Serving development feedback form from:", indexPath);
+        
+        if (!fs.existsSync(indexPath)) {
+          console.error("Development index.html not found at:", indexPath);
+          return res.status(500).json({ error: "Client files not found" });
+        }
+        
+        res.sendFile(indexPath);
+      } catch (error) {
+        console.error("Error serving feedback form:", error);
+        res.status(500).json({ error: "Failed to serve feedback form" });
+      }
+    });
   } else {
+    // Production mode setup
     serveStatic(app);
   }
 

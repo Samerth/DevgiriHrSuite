@@ -286,7 +286,7 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
                           <tr key={attendee.id} className="border-b">
                             <td className="px-4 py-2">{index + 1}</td>
                             <td className="px-4 py-2">{attendee.firstName} {attendee.lastName}</td>
-                            <td className="px-4 py-2">{attendee.employeeCode}</td>
+                            <td className="px-4 py-2">{attendee.employeeId}</td>
                             <td className="px-4 py-2">{attendee.department}</td>
                           </tr>
                         ))}

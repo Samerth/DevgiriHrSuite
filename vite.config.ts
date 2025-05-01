@@ -37,6 +37,7 @@ export default defineConfig(async ({ mode }) => {
     },
     define: {
       'process.env': env
-    }
+    },
+    base: mode === 'production' ? 'https://codsphere.in' : '/'
   }
 });

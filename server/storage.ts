@@ -118,6 +118,8 @@ export interface IStorage {
 
   // New method for syncing user from Supabase
   syncUserFromSupabase(supabaseUser: any): Promise<User>;
+
+  getTrainingAttendance(trainingId: number): Promise<Array<{ userId: number; attendanceStatus: string }>>;
 }
 
 // In-Memory Storage implementation
@@ -804,6 +806,23 @@ export class MemStorage implements IStorage {
       throw error;
     }
   }
+
+  async getTrainingAttendance(trainingId: number): Promise<Array<{ userId: number; attendanceStatus: string }>> {
+    try {
+      const attendanceRecords = await this.db
+        .select({
+          userId: trainingAttendees.userId,
+          attendanceStatus: trainingAttendees.attendanceStatus
+        })
+        .from(trainingAttendees)
+        .where(eq(trainingAttendees.trainingId, trainingId));
+
+      return attendanceRecords;
+    } catch (error) {
+      console.error('Error fetching training attendance:', error);
+      return [];
+    }
+  }
 }
 
 // Database Storage implementation
@@ -1319,18 +1338,30 @@ export class DatabaseStorage implements IStorage {
         try {
           const attendeeIds = record.attendees.map((id: string) => parseInt(id)).filter(id => !isNaN(id));
           if (attendeeIds.length > 0) {
+            // Get attendee details with attendance status
             const attendees = await this.db
               .select({
                 id: users.id,
                 firstName: users.firstName,
                 lastName: users.lastName,
                 employeeId: users.employeeId,
-                department: users.department
+                department: users.department,
+                attendanceStatus: trainingAttendees.attendanceStatus
               })
               .from(users)
+              .leftJoin(
+                trainingAttendees,
+                and(
+                  eq(trainingAttendees.trainingId, id),
+                  eq(trainingAttendees.userId, users.id)
+                )
+              )
               .where(inArray(users.id, attendeeIds));
 
-            record.attendees = attendees;
+            record.attendees = attendees.map(attendee => ({
+              ...attendee,
+              attendanceStatus: attendee.attendanceStatus || 'registered'
+            }));
           }
         } catch (error) {
           console.error('Error fetching attendee details:', error);
@@ -1679,6 +1710,23 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error syncing user from Supabase:", error);
       throw error;
+    }
+  }
+
+  async getTrainingAttendance(trainingId: number): Promise<Array<{ userId: number; attendanceStatus: string }>> {
+    try {
+      const attendanceRecords = await this.db
+        .select({
+          userId: trainingAttendees.userId,
+          attendanceStatus: trainingAttendees.attendanceStatus
+        })
+        .from(trainingAttendees)
+        .where(eq(trainingAttendees.trainingId, trainingId));
+
+      return attendanceRecords;
+    } catch (error) {
+      console.error('Error fetching training attendance:', error);
+      return [];
     }
   }
 }

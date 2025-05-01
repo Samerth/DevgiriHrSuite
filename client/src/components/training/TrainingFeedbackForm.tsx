@@ -22,6 +22,7 @@ import { AttendeeCombobox } from "@/components/common/AttendeeCombobox";
 import { apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useQueryClient } from "@tanstack/react-query";
 
 const feedbackFormSchema = z.object({
   userId: z.string().min(1, "Employee is required"),
@@ -40,6 +41,7 @@ const feedbackFormSchema = z.object({
 export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: number; onSuccess?: () => void }) {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const queryClient = useQueryClient();
   const form = useForm({
     resolver: zodResolver(feedbackFormSchema),
     defaultValues: {
@@ -132,6 +134,13 @@ export function TrainingFeedbackForm({ trainingId, onSuccess }: { trainingId: nu
       }
 
       console.log('Attendance marked successfully');
+      
+      // Invalidate the training record query to refresh the data
+      await queryClient.invalidateQueries({ 
+        queryKey: ["training-record", trainingId],
+        refetchType: 'active'
+      });
+      
       toast({
         title: "Success",
         description: "Feedback submitted successfully",

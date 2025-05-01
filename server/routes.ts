@@ -757,6 +757,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!record) {
         return res.status(404).json({ error: "Training record not found" });
       }
+
+      // Get attendance status for each attendee
+      if (record.attendees && Array.isArray(record.attendees) && record.attendees.length > 0) {
+        const attendeeIds = record.attendees.map((id: string) => parseInt(id)).filter(id => !isNaN(id));
+        if (attendeeIds.length > 0) {
+          const attendanceRecords = await storage.getTrainingAttendance(id);
+          const attendanceMap = new Map(
+            attendanceRecords.map((att: { userId: number; attendanceStatus: string }) => [
+              att.userId,
+              att.attendanceStatus
+            ])
+          );
+
+          record.attendees = record.attendees.map((attendee: { id: number; firstName: string; lastName: string; employeeId: string; department: string }) => ({
+            ...attendee,
+            attendanceStatus: attendanceMap.get(attendee.id) || 'registered'
+          }));
+        }
+      }
       
       res.json(record);
     } catch (error) {

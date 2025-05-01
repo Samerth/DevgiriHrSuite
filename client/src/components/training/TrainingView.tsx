@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
 import { TrainingAssessment } from "./TrainingAssessment";
 import { TrainingFeedbackForm } from "./TrainingFeedbackForm";
+import { Input } from "@/components/ui/input";
 
 interface TrainingRecord {
   id: number;
@@ -34,7 +35,14 @@ interface TrainingRecord {
   evaluation?: string;
   effectiveness?: string;
   notes?: string;
-  attendees?: number[];
+  attendees?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    employeeId: string;
+    department: string;
+    attendanceStatus?: string;
+  }[];
   assessmentScore?: number;
   start_time?: string;
   end_time?: string;
@@ -90,6 +98,7 @@ interface Feedback {
   additionalTopics: string | null;
   keyLearnings: string | null;
   specialObservations: string | null;
+  createdAt: string;
   user: {
     id: number;
     firstName: string;
@@ -120,6 +129,12 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
   const [activeTab, setActiveTab] = useState("details");
   const [showAssessmentForm, setShowAssessmentForm] = useState(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [assessmentSearchTerm, setAssessmentSearchTerm] = useState('');
+  const [feedbackSearchTerm, setFeedbackSearchTerm] = useState('');
+  const [assessmentSortField, setAssessmentSortField] = useState<'date' | 'score' | 'employee'>('date');
+  const [assessmentSortOrder, setAssessmentSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [feedbackSortField, setFeedbackSortField] = useState<'date' | 'employee'>('date');
+  const [feedbackSortOrder, setFeedbackSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const { data: training, isLoading: isTrainingLoading } = useQuery<TrainingRecord>({
     queryKey: ["training-record", id],
@@ -175,6 +190,72 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
     setShowFeedbackForm(false);
   };
 
+  const handleAssessmentSort = (field: 'date' | 'score' | 'employee') => {
+    if (assessmentSortField === field) {
+      setAssessmentSortOrder(assessmentSortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setAssessmentSortField(field);
+      setAssessmentSortOrder('asc');
+    }
+  };
+
+  const handleFeedbackSort = (field: 'date' | 'employee') => {
+    if (feedbackSortField === field) {
+      setFeedbackSortOrder(feedbackSortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setFeedbackSortField(field);
+      setFeedbackSortOrder('asc');
+    }
+  };
+
+  const filteredAndSortedAssessments = assessments
+    .filter(assessment => {
+      const employeeName = assessment.user ? 
+        `${assessment.user.firstName} ${assessment.user.lastName}`.toLowerCase() : 
+        '';
+      return employeeName.includes(assessmentSearchTerm.toLowerCase());
+    })
+    .sort((a, b) => {
+      const modifier = assessmentSortOrder === 'asc' ? 1 : -1;
+      
+      switch (assessmentSortField) {
+        case 'date':
+          return modifier * (new Date(a.assessment.assessmentDate).getTime() - 
+                           new Date(b.assessment.assessmentDate).getTime());
+        case 'score':
+          return modifier * (a.assessment.totalScore - b.assessment.totalScore);
+        case 'employee':
+          const aName = a.user ? `${a.user.firstName} ${a.user.lastName}` : '';
+          const bName = b.user ? `${b.user.firstName} ${b.user.lastName}` : '';
+          return modifier * aName.localeCompare(bName);
+        default:
+          return 0;
+      }
+    });
+
+  const filteredAndSortedFeedback = feedback
+    .filter(item => {
+      const employeeName = item.user ? 
+        `${item.user.firstName} ${item.user.lastName}`.toLowerCase() : 
+        '';
+      return employeeName.includes(feedbackSearchTerm.toLowerCase());
+    })
+    .sort((a, b) => {
+      const modifier = feedbackSortOrder === 'asc' ? 1 : -1;
+      
+      switch (feedbackSortField) {
+        case 'date':
+          return modifier * (new Date(a.createdAt).getTime() - 
+                           new Date(b.createdAt).getTime());
+        case 'employee':
+          const aName = a.user ? `${a.user.firstName} ${a.user.lastName}` : '';
+          const bName = b.user ? `${b.user.firstName} ${b.user.lastName}` : '';
+          return modifier * aName.localeCompare(bName);
+        default:
+          return 0;
+      }
+    });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="training-view-description">
@@ -188,6 +269,7 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="overflow-hidden">
           <TabsList>
             <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="attendees">Attendees</TabsTrigger>
             <TabsTrigger value="assessments">Assessments</TabsTrigger>
             <TabsTrigger value="feedback">Feedback</TabsTrigger>
           </TabsList>
@@ -267,32 +349,48 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          </TabsContent>
 
+          <TabsContent value="attendees">
+            <div className="space-y-6">
               <Card>
                 <CardContent className="pt-6">
-                  <h3 className="font-semibold mb-4">Attendees</h3>
-                  <div className="border rounded-md">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="px-4 py-2 text-left">S.No.</th>
-                          <th className="px-4 py-2 text-left">Name</th>
-                          <th className="px-4 py-2 text-left">Emp Code</th>
-                          <th className="px-4 py-2 text-left">Department</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {training.attendees?.map((attendee: any, index: number) => (
-                          <tr key={attendee.id} className="border-b">
-                            <td className="px-4 py-2">{index + 1}</td>
-                            <td className="px-4 py-2">{attendee.firstName} {attendee.lastName}</td>
-                            <td className="px-4 py-2">{attendee.employeeId}</td>
-                            <td className="px-4 py-2">{attendee.department}</td>
+                  <h3 className="font-semibold mb-4">Training Attendees</h3>
+                  {training?.attendees && training.attendees.length > 0 ? (
+                    <div className="border rounded-md">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="px-4 py-2 text-left">S.No.</th>
+                            <th className="px-4 py-2 text-left">Name</th>
+                            <th className="px-4 py-2 text-left">Emp Code</th>
+                            <th className="px-4 py-2 text-left">Department</th>
+                            <th className="px-4 py-2 text-left">Status</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {training.attendees.map((attendee, index) => (
+                            <tr key={attendee.id} className="border-b">
+                              <td className="px-4 py-2">{index + 1}</td>
+                              <td className="px-4 py-2">{attendee.firstName} {attendee.lastName}</td>
+                              <td className="px-4 py-2">{attendee.employeeId}</td>
+                              <td className="px-4 py-2">{attendee.department}</td>
+                              <td className="px-4 py-2">
+                                <Badge 
+                                  variant={attendee.attendanceStatus === 'present' ? 'default' : 'secondary'}
+                                >
+                                  {attendee.attendanceStatus === 'present' ? 'Present' : 'Registered'}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">No attendees registered for this training.</p>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -301,7 +399,15 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
           <TabsContent value="assessments">
             <div className="space-y-6">
               {!showAssessmentForm && (
-                <div className="flex justify-end">
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-4">
+                    <Input
+                      placeholder="Search by employee name..."
+                      value={assessmentSearchTerm}
+                      onChange={(e) => setAssessmentSearchTerm(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
                   <Button onClick={() => setShowAssessmentForm(true)}>
                     Add Assessment
                   </Button>
@@ -315,7 +421,7 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
                 />
               ) : (
                 <div className="space-y-4">
-                  {assessments.map((assessment) => (
+                  {filteredAndSortedAssessments.map((assessment) => (
                     <Card key={assessment.assessment.id}>
                       <CardHeader>
                         <div className="flex items-center justify-between">
@@ -390,7 +496,15 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
           <TabsContent value="feedback">
             <div className="space-y-6">
               {!showFeedbackForm && (
-                <div className="flex justify-end">
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-4">
+                    <Input
+                      placeholder="Search by employee name..."
+                      value={feedbackSearchTerm}
+                      onChange={(e) => setFeedbackSearchTerm(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
                   <Button onClick={() => setShowFeedbackForm(true)}>
                     Add Feedback
                   </Button>
@@ -404,7 +518,7 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
                 />
               ) : (
                 <div className="space-y-4">
-                  {feedback.map((item) => (
+                  {filteredAndSortedFeedback.map((item) => (
                     <Card key={item.id}>
                       <CardHeader>
                         <div className="flex items-center justify-between">
@@ -440,23 +554,19 @@ export function TrainingView({ id, open, onOpenChange }: TrainingViewProps) {
                               <p className="text-sm text-muted-foreground">Good Learning Environment</p>
                               <p className="font-medium">{item.learningEnvironment ? "Yes" : "No"}</p>
                             </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground">Helpful for Work</p>
-                              <p className="font-medium">{item.helpfulForWork ? "Yes" : "No"}</p>
-                            </div>
                           </div>
-
-                          {item.additionalTopics && (
-                            <div>
-                              <p className="text-sm text-muted-foreground">Additional Topics Suggested</p>
-                              <p className="font-medium">{item.additionalTopics}</p>
-                            </div>
-                          )}
 
                           {item.keyLearnings && (
                             <div>
                               <p className="text-sm text-muted-foreground">Key Learnings</p>
                               <p className="font-medium">{item.keyLearnings}</p>
+                            </div>
+                          )}
+
+                          {item.additionalTopics && (
+                            <div>
+                              <p className="text-sm text-muted-foreground">Additional Topics</p>
+                              <p className="font-medium">{item.additionalTopics}</p>
                             </div>
                           )}
 

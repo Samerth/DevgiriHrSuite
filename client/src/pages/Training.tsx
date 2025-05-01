@@ -14,6 +14,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowUpDown } from "lucide-react";
 
 interface TrainingRecord {
   id: number;
@@ -26,6 +29,9 @@ interface TrainingRecord {
   notes: string | null;
 }
 
+type SortField = 'trainingTitle' | 'date' | 'department' | 'status';
+type SortOrder = 'asc' | 'desc';
+
 export default function Training() {
   const { toast } = useToast();
   const [showNewTrainingForm, setShowNewTrainingForm] = useState(false);
@@ -34,6 +40,11 @@ export default function Training() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const fetchTrainingRecords = async () => {
     try {
@@ -62,6 +73,37 @@ export default function Training() {
     fetchTrainingRecords();
   }, []);
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const filteredAndSortedRecords = trainingRecords
+    .filter(record => {
+      const matchesSearch = record.trainingTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          record.trainingType.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesDepartment = departmentFilter === 'all' || record.department === departmentFilter;
+      const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
+      return matchesSearch && matchesDepartment && matchesStatus;
+    })
+    .sort((a, b) => {
+      const aValue = a[sortField];
+      const bValue = b[sortField];
+      const modifier = sortOrder === 'asc' ? 1 : -1;
+
+      if (sortField === 'date') {
+        return modifier * (new Date(aValue).getTime() - new Date(bValue).getTime());
+      }
+      return modifier * String(aValue).localeCompare(String(bValue));
+    });
+
+  const uniqueDepartments = Array.from(new Set(trainingRecords.map(record => record.department).filter(Boolean)));
+  const uniqueStatuses = Array.from(new Set(trainingRecords.map(record => record.status).filter(Boolean)));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -83,25 +125,90 @@ export default function Training() {
           <CardTitle>Training Records</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-col gap-4 mb-4">
+            <div className="flex gap-4">
+              <Input
+                placeholder="Search by title or type..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {uniqueDepartments.map(dept => (
+                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {uniqueStatuses.map(status => (
+                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading training records...</p>
-          ) : trainingRecords.length === 0 ? (
+          ) : filteredAndSortedRecords.length === 0 ? (
             <p className="text-sm text-muted-foreground">No training records found.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
+                  <TableHead 
+                    className="cursor-pointer" 
+                    onClick={() => handleSort('trainingTitle')}
+                  >
+                    <div className="flex items-center">
+                      Title
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </div>
+                  </TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead 
+                    className="cursor-pointer" 
+                    onClick={() => handleSort('date')}
+                  >
+                    <div className="flex items-center">
+                      Date
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer" 
+                    onClick={() => handleSort('department')}
+                  >
+                    <div className="flex items-center">
+                      Department
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer" 
+                    onClick={() => handleSort('status')}
+                  >
+                    <div className="flex items-center">
+                      Status
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </div>
+                  </TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {trainingRecords.map((record) => (
+                {filteredAndSortedRecords.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell>{record.trainingTitle}</TableCell>
                     <TableCell className="capitalize">{record.trainingType}</TableCell>

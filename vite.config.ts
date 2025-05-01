@@ -38,6 +38,6 @@ export default defineConfig(async ({ mode }) => {
     define: {
       'process.env': env
     },
-    base: mode === 'production' ? 'http://codsphere.in' : '/'
+    base: mode === 'production' ? 'http://codsphere.in:5000' : '/'
   }
 });
